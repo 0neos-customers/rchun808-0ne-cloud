@@ -3,24 +3,5 @@
   "buildCommand": "bun run build --filter=web",
   "installCommand": "bun install",
   "outputDirectory": "apps/web/.next",
-  "framework": "nextjs",
-  "redirects": [
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "(?:www\\.)?project0ne\\.ai"
-        }
-      ],
-      "missing": [
-        {
-          "type": "host",
-          "value": "app.project0ne.ai"
-        }
-      ],
-      "destination": "https://app.project0ne.ai/:path*",
-      "permanent": false
-    }
-  ]
+  "framework": "nextjs"
 }

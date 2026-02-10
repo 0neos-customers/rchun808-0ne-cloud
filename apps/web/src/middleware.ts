@@ -1,6 +1,20 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { canAccessApp, type AppId } from '@0ne/auth/permissions'
+
+// Redirect root domain to app subdomain (temporary until marketing site exists)
+function handleDomainRedirect(request: NextRequest): NextResponse | null {
+  const hostname = request.headers.get('host') || ''
+
+  // Redirect project0ne.ai (not app.project0ne.ai) to app subdomain
+  if (hostname === 'project0ne.ai' || hostname === 'www.project0ne.ai') {
+    const url = request.nextUrl.clone()
+    url.host = 'app.project0ne.ai'
+    return NextResponse.redirect(url, 307)
+  }
+
+  return null
+}
 
 const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
@@ -17,6 +31,10 @@ const appRoutes: Record<string, AppId> = {
 }
 
 export default clerkMiddleware(async (auth, request) => {
+  // Handle domain redirect before anything else
+  const domainRedirect = handleDomainRedirect(request)
+  if (domainRedirect) return domainRedirect
+
   const { pathname } = request.nextUrl
 
   if (isPublicRoute(request)) {
