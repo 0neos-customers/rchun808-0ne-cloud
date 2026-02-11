@@ -17,23 +17,25 @@ import {
   SelectValue,
   Switch,
 } from '@0ne/ui'
-import { Loader2, Image as ImageIcon, Video, Layers, FolderOpen } from 'lucide-react'
-import { DAY_NAMES, type DayOfWeek } from '@0ne/db'
-import { useCategories } from '../hooks/use-categories'
-import { useVariationGroups } from '../hooks/use-variation-groups'
+import { Loader2, Image as ImageIcon, Video, Layers, FolderOpen, Bot, Upload, User, Plus } from 'lucide-react'
+import { type DayOfWeek, type PostLibraryStatus, type PostLibrarySource } from '@0ne/db'
+import { useVariationGroups, createVariationGroup } from '../hooks/use-variation-groups'
+import { VariationGroupDialog, type VariationGroupFormData } from './VariationGroupDialog'
 import { MediaPickerDialog } from '@/features/media'
 
 export interface PostFormData {
   id?: string
-  category: string
-  day_of_week: DayOfWeek | null
-  time: string | null
+  category?: string // kept for backward compatibility
+  day_of_week?: DayOfWeek | null // kept for backward compatibility
+  time?: string | null // kept for backward compatibility
   variation_group_id: string | null
   title: string
   body: string
   image_url: string
   video_url: string
   is_active: boolean
+  status?: PostLibraryStatus
+  source?: PostLibrarySource
 }
 
 interface PostDialogProps {
@@ -45,15 +47,14 @@ interface PostDialogProps {
 }
 
 const defaultFormData: PostFormData = {
-  category: '',
-  day_of_week: null,
-  time: null,
   variation_group_id: null,
   title: '',
   body: '',
   image_url: '',
   video_url: '',
   is_active: true,
+  status: 'active',
+  source: 'manual',
 }
 
 
@@ -65,48 +66,62 @@ export function PostDialog({
   isSaving = false,
 }: PostDialogProps) {
   const [formData, setFormData] = useState<PostFormData>(defaultFormData)
-  const [useLegacyMatching, setUseLegacyMatching] = useState(false)
   const [imagePickerOpen, setImagePickerOpen] = useState(false)
   const [videoPickerOpen, setVideoPickerOpen] = useState(false)
-  const { categories, isLoading: categoriesLoading } = useCategories()
-  const { groups: variationGroups, isLoading: groupsLoading } = useVariationGroups()
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false)
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false)
+  const { groups: variationGroups, isLoading: groupsLoading, refresh: refreshGroups } = useVariationGroups()
   const isEditMode = !!post?.id
+  const isEditingOrphan = isEditMode && !post?.variation_group_id
 
   // Reset form when dialog opens/closes or post changes
   useEffect(() => {
     if (open && post) {
-      const hasLegacyData = post.day_of_week !== null && post.time !== null
-      setUseLegacyMatching(hasLegacyData && !post.variation_group_id)
       setFormData({
         id: post.id,
-        category: post.category || '',
-        day_of_week: post.day_of_week ?? null,
-        time: post.time || null,
         variation_group_id: post.variation_group_id || null,
         title: post.title || '',
         body: post.body || '',
         image_url: post.image_url || '',
         video_url: post.video_url || '',
         is_active: post.is_active ?? true,
+        status: post.status || 'active',
+        source: post.source || 'manual',
       })
     } else if (open && !post) {
-      setUseLegacyMatching(false)
       setFormData(defaultFormData)
     }
   }, [open, post])
 
   const handleSubmit = async () => {
-    // Clear legacy fields if using variation group
-    const dataToSave = {
-      ...formData,
-      day_of_week: useLegacyMatching ? formData.day_of_week : null,
-      time: useLegacyMatching ? formData.time : null,
-      variation_group_id: useLegacyMatching ? null : formData.variation_group_id,
-    }
-    await onSave(dataToSave)
+    await onSave(formData)
   }
 
-  const isValid = formData.title && formData.body && (formData.variation_group_id || useLegacyMatching)
+  const handleCreateGroup = async (data: VariationGroupFormData) => {
+    setIsCreatingGroup(true)
+    try {
+      const result = await createVariationGroup({
+        name: data.name,
+        description: data.description,
+        is_active: data.is_active,
+      })
+      if (result.error) {
+        console.error('Failed to create group:', result.error)
+        return
+      }
+      if (result.group) {
+        // Auto-select the new group
+        setFormData({ ...formData, variation_group_id: result.group.id })
+        // Refresh the groups list
+        refreshGroups()
+        setGroupDialogOpen(false)
+      }
+    } finally {
+      setIsCreatingGroup(false)
+    }
+  }
+
+  const isValid = formData.title && formData.body && (isEditMode || formData.variation_group_id)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -120,121 +135,51 @@ export function PostDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          {/* Matching Mode Toggle */}
-          <div className="rounded-md border p-3 bg-muted/50">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <label className="text-sm font-medium">Use Legacy Matching</label>
-                <p className="text-xs text-muted-foreground">
-                  {useLegacyMatching
-                    ? 'Match by category, day, and time'
-                    : 'Match by variation group (recommended)'}
-                </p>
-              </div>
-              <Switch
-                checked={useLegacyMatching}
-                onCheckedChange={(checked) => {
-                  setUseLegacyMatching(checked)
-                  if (checked) {
-                    setFormData({ ...formData, variation_group_id: null, day_of_week: 1, time: '09:00' })
-                  } else {
-                    setFormData({ ...formData, day_of_week: null, time: null })
-                  }
-                }}
-              />
-            </div>
-          </div>
-
-          {useLegacyMatching ? (
-            /* Legacy Mode: Category, Day of Week, Time */
-            <div className="grid grid-cols-3 gap-4">
-              <div className="grid gap-2">
-                <label htmlFor="post-category" className="text-sm font-medium">
-                  Category
-                </label>
-                <Select
-                  value={formData.category}
-                  onValueChange={(value) => setFormData({ ...formData, category: value })}
-                  disabled={categoriesLoading}
-                >
-                  <SelectTrigger id="post-category">
-                    <SelectValue placeholder={categoriesLoading ? 'Loading...' : 'Select'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.name} value={cat.name}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <label htmlFor="post-day" className="text-sm font-medium">
-                  Day
-                </label>
-                <Select
-                  value={formData.day_of_week !== null ? String(formData.day_of_week) : ''}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, day_of_week: parseInt(value, 10) as DayOfWeek })
-                  }
-                >
-                  <SelectTrigger id="post-day">
-                    <SelectValue placeholder="Day" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DAY_NAMES.map((day, index) => (
-                      <SelectItem key={day} value={String(index)}>
-                        {day}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <label htmlFor="post-time" className="text-sm font-medium">
-                  Time
-                </label>
-                <Input
-                  id="post-time"
-                  type="time"
-                  value={formData.time || ''}
-                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+          {/* Variation Group */}
+          <div className="grid gap-2">
+            <label htmlFor="post-group" className="text-sm font-medium flex items-center gap-1">
+              <Layers className="h-4 w-4" />
+              Variation Group
+            </label>
+            <Select
+              value={formData.variation_group_id || (isEditingOrphan ? 'none' : '')}
+              onValueChange={(value) => {
+                if (value === 'create-new') {
+                  setGroupDialogOpen(true)
+                } else {
+                  setFormData({ ...formData, variation_group_id: value === 'none' ? null : value })
+                }
+              }}
+              disabled={groupsLoading}
+            >
+              <SelectTrigger id="post-group">
+                <SelectValue
+                  placeholder={groupsLoading ? 'Loading...' : 'Select variation group...'}
                 />
-              </div>
-            </div>
-          ) : (
-            /* New Mode: Variation Group */
-            <div className="grid gap-2">
-              <label htmlFor="post-group" className="text-sm font-medium flex items-center gap-1">
-                <Layers className="h-4 w-4" />
-                Variation Group
-              </label>
-              <Select
-                value={formData.variation_group_id || ''}
-                onValueChange={(value) => setFormData({ ...formData, variation_group_id: value })}
-                disabled={groupsLoading}
-              >
-                <SelectTrigger id="post-group">
-                  <SelectValue
-                    placeholder={groupsLoading ? 'Loading...' : 'Select variation group'}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {variationGroups
-                    .filter((g) => g.is_active)
-                    .map((group) => (
-                      <SelectItem key={group.id} value={group.id}>
-                        {group.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                This post will be used by any scheduler that references this group
-              </p>
-            </div>
-          )}
+              </SelectTrigger>
+              <SelectContent>
+                {isEditingOrphan && <SelectItem value="none">No Group</SelectItem>}
+                <SelectItem value="create-new">
+                  <span className="flex items-center gap-1">
+                    <Plus className="h-3 w-3" />
+                    Create New Group
+                  </span>
+                </SelectItem>
+                {variationGroups
+                  .filter((g) => g.is_active)
+                  .map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {isEditingOrphan
+                ? 'Optionally assign to a group for scheduling'
+                : 'Required: Select a group for scheduled rotations'}
+            </p>
+          </div>
 
           {/* Title */}
           <div className="grid gap-2">
@@ -351,6 +296,56 @@ export function PostDialog({
               onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
             />
           </div>
+
+          {/* Status and Source (only shown in edit mode) */}
+          {isEditMode && (
+            <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+              {/* Status */}
+              <div className="grid gap-2">
+                <label htmlFor="post-status" className="text-sm font-medium">
+                  Status
+                </label>
+                <Select
+                  value={formData.status || 'active'}
+                  onValueChange={(value) => setFormData({ ...formData, status: value as PostLibraryStatus })}
+                >
+                  <SelectTrigger id="post-status">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Source (read-only) */}
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Source</label>
+                <div className="flex items-center h-9 px-3 rounded-md border bg-muted/50">
+                  {formData.source === 'api' && (
+                    <span className="flex items-center gap-1 text-sm">
+                      <Bot className="h-4 w-4" />
+                      Created by AI
+                    </span>
+                  )}
+                  {formData.source === 'import' && (
+                    <span className="flex items-center gap-1 text-sm">
+                      <Upload className="h-4 w-4" />
+                      Imported
+                    </span>
+                  )}
+                  {(!formData.source || formData.source === 'manual') && (
+                    <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <User className="h-4 w-4" />
+                      Manual
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
@@ -385,6 +380,15 @@ export function PostDialog({
         }}
         mode="single"
         allowedTypes={['video']}
+      />
+
+      {/* Inline Group Creation Dialog */}
+      <VariationGroupDialog
+        open={groupDialogOpen}
+        onOpenChange={setGroupDialogOpen}
+        group={null}
+        onSave={handleCreateGroup}
+        isSaving={isCreatingGroup}
       />
     </Dialog>
   )
