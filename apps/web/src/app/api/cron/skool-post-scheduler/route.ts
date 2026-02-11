@@ -133,10 +133,12 @@ export async function GET(request: NextRequest) {
     )
 
     // Find oldest unused post - prefer variation_group_id if set, else fall back to legacy matching
+    // IMPORTANT: Only select approved or active posts (never drafts)
     let postQuery = supabase
       .from('skool_post_library')
       .select('*')
       .eq('is_active', true)
+      .in('status', ['approved', 'active']) // Filter out drafts
       .order('last_used_at', { ascending: true, nullsFirst: true })
       .limit(1)
 
@@ -176,17 +178,17 @@ export async function GET(request: NextRequest) {
     const post = (posts as SkoolPostLibraryItem[] | null)?.[0]
 
     if (!post) {
-      console.log(`[skool-post-scheduler] No active posts available for scheduler ${scheduler.id}`)
+      console.log(`[skool-post-scheduler] No approved/active posts available for scheduler ${scheduler.id}`)
       await logExecution(supabase, {
         scheduler_id: scheduler.id,
         status: 'skipped',
-        error_message: 'No active posts available for rotation',
+        error_message: 'No approved posts available for rotation (drafts are excluded)',
       })
       results.push({
         type: 'recurring',
         id: scheduler.id,
         status: 'skipped',
-        reason: 'no posts',
+        reason: 'no approved posts',
       })
       continue
     }

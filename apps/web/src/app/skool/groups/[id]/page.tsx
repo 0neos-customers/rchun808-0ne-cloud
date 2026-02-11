@@ -144,9 +144,9 @@ export default function VariationGroupDetailPage() {
       } else {
         // Create new - pre-set the variation group
         const result = await createPost({
-          category: data.category,
-          day_of_week: data.day_of_week,
-          time: data.time,
+          category: '', // kept for backward compatibility
+          day_of_week: null,
+          time: null,
           title: data.title,
           body: data.body,
           image_url: data.image_url || null,

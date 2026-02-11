@@ -1,6 +1,6 @@
 // Skool Post Scheduler hooks
 export { useSchedulers, createScheduler, updateScheduler, deleteScheduler } from './use-schedulers'
-export { usePostLibrary, createPost, updatePost, deletePost } from './use-post-library'
+export { usePostLibrary, createPost, updatePost, deletePost, approvePost, bulkApprovePosts } from './use-post-library'
 export { useExecutionLog } from './use-execution-log'
 export { useCategories } from './use-categories'
 export {

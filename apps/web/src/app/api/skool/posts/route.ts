@@ -9,29 +9,28 @@ export const dynamic = 'force-dynamic'
  * List posts from the library with optional filters
  *
  * Query params:
- * - category: Filter by category name
  * - day_of_week: Filter by day (0-6) (legacy)
  * - time: Filter by time slot (HH:MM) (legacy)
- * - variation_group_id: Filter by variation group
+ * - variation_group_id: Filter by variation group (use 'none' for posts with no group)
  * - is_active: Filter by active status (true/false)
+ * - status: Filter by status (draft, approved, active)
+ * - source: Filter by source (manual, api, import)
  */
 export async function GET(request: NextRequest) {
   try {
     const supabase = createServerClient()
     const { searchParams } = new URL(request.url)
-    const category = searchParams.get('category')
     const dayOfWeek = searchParams.get('day_of_week')
     const time = searchParams.get('time')
     const variationGroupId = searchParams.get('variation_group_id')
     const isActive = searchParams.get('is_active')
+    const status = searchParams.get('status')
+    const source = searchParams.get('source')
 
     let query = supabase
       .from('skool_post_library')
       .select('*, variation_group:skool_variation_groups(id, name, is_active)')
 
-    if (category) {
-      query = query.eq('category', category)
-    }
     if (dayOfWeek !== null && dayOfWeek !== '') {
       query = query.eq('day_of_week', parseInt(dayOfWeek, 10))
     }
@@ -39,14 +38,24 @@ export async function GET(request: NextRequest) {
       query = query.eq('time', time)
     }
     if (variationGroupId) {
-      query = query.eq('variation_group_id', variationGroupId)
+      if (variationGroupId === 'none') {
+        query = query.is('variation_group_id', null)
+      } else {
+        query = query.eq('variation_group_id', variationGroupId)
+      }
     }
     if (isActive !== null && isActive !== '') {
       query = query.eq('is_active', isActive === 'true')
     }
+    if (status) {
+      query = query.eq('status', status)
+    }
+    if (source) {
+      query = query.eq('source', source)
+    }
 
     const { data, error } = await query
-      .order('category')
+      .order('status') // Show drafts first
       .order('last_used_at', { ascending: true, nullsFirst: true })
 
     if (error) {
@@ -111,6 +120,8 @@ export async function POST(request: NextRequest) {
         image_url: body.image_url || null,
         video_url: body.video_url || null,
         is_active: body.is_active ?? true,
+        status: body.status || 'active', // Default to active for manual creation
+        source: body.source || 'manual',
       })
       .select('*, variation_group:skool_variation_groups(id, name, is_active)')
       .single()
@@ -162,9 +173,15 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    // Set approved_at when transitioning to approved status
+    const updateData = { ...updates, updated_at: new Date().toISOString() }
+    if (updates.status === 'approved' || updates.status === 'active') {
+      updateData.approved_at = new Date().toISOString()
+    }
+
     const { data, error } = await supabase
       .from('skool_post_library')
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .update(updateData)
       .eq('id', id)
       .select('*, variation_group:skool_variation_groups(id, name, is_active)')
       .single()

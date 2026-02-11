@@ -21,31 +21,30 @@ import {
   DropdownMenuTrigger,
   toast,
 } from '@0ne/ui'
-import { Plus, MoreHorizontal, Pencil, Trash2, Loader2, Eye, Image, Video } from 'lucide-react'
-import { DAY_NAMES, formatScheduleTime, type SkoolPostLibraryItem } from '@0ne/db'
+import { Plus, MoreHorizontal, Pencil, Trash2, Loader2, Eye, Check, Bot, Upload, User } from 'lucide-react'
+import { type SkoolPostLibraryItem, type PostLibraryStatus } from '@0ne/db'
 import {
   usePostLibrary,
   createPost,
   updatePost,
   deletePost,
-  useCategories,
+  approvePost,
   useVariationGroups,
 } from '@/features/skool/hooks'
 import { PostDialog, ConfirmDialog, PostPreviewPopover, type PostFormData } from '@/features/skool/components'
 
 export default function PostsLibraryPage() {
   const [groupFilter, setGroupFilter] = useState<string>('all')
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
 
   // Build filters object based on active filters
   const filters = {
     ...(groupFilter !== 'all' ? { variationGroupId: groupFilter } : {}),
-    ...(categoryFilter !== 'all' ? { category: categoryFilter } : {}),
+    ...(statusFilter !== 'all' ? { status: statusFilter as PostLibraryStatus } : {}),
   }
   const hasFilters = Object.keys(filters).length > 0
 
   const { posts, isLoading, refresh } = usePostLibrary(hasFilters ? filters : undefined)
-  const { categories } = useCategories()
   const { groups } = useVariationGroups(true) // include stats for post counts
 
   // Dialog state
@@ -58,17 +57,27 @@ export default function PostsLibraryPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Group posts by category
-  const postsByCategory = useMemo(() => {
-    return posts.reduce(
-      (acc, p) => {
-        if (!acc[p.category]) acc[p.category] = []
-        acc[p.category].push(p)
-        return acc
-      },
-      {} as Record<string, SkoolPostLibraryItem[]>
-    )
+  // Approve state
+  const [approvingId, setApprovingId] = useState<string | null>(null)
+
+  // Sort posts by created_at descending (newest first)
+  const sortedPosts = useMemo(() => {
+    return [...posts].sort((a, b) => {
+      // Drafts always at top, then by created_at descending
+      if (a.status === 'draft' && b.status !== 'draft') return -1
+      if (b.status === 'draft' && a.status !== 'draft') return 1
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
   }, [posts])
+
+  // Create a map of group IDs to names for display
+  const groupNameMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    groups.forEach((g) => {
+      map[g.id] = g.name
+    })
+    return map
+  }, [groups])
 
   const handleAddClick = () => {
     setEditingPost(null)
@@ -91,14 +100,13 @@ export default function PostsLibraryPage() {
       if (data.id) {
         // Update existing
         const result = await updatePost(data.id, {
-          category: data.category,
-          day_of_week: data.day_of_week,
-          time: data.time,
           title: data.title,
           body: data.body,
           image_url: data.image_url || null,
           video_url: data.video_url || null,
           is_active: data.is_active,
+          variation_group_id: data.variation_group_id,
+          status: data.status,
         })
         if (result.error) {
           toast.error(result.error)
@@ -106,17 +114,19 @@ export default function PostsLibraryPage() {
         }
         toast.success('Post updated')
       } else {
-        // Create new
+        // Create new (manual creation defaults to active)
         const result = await createPost({
-          category: data.category,
-          day_of_week: data.day_of_week,
-          time: data.time,
+          category: '', // kept for backward compatibility
+          day_of_week: null,
+          time: null,
           title: data.title,
           body: data.body,
           image_url: data.image_url || null,
           video_url: data.video_url || null,
           is_active: data.is_active,
-          variation_group_id: null,
+          variation_group_id: data.variation_group_id,
+          status: 'active',
+          source: 'manual',
         })
         if (result.error) {
           toast.error(result.error)
@@ -149,16 +159,51 @@ export default function PostsLibraryPage() {
     }
   }
 
-  const sortedCategories = Object.keys(postsByCategory).sort()
+  const handleApprove = async (id: string) => {
+    setApprovingId(id)
+    try {
+      const result = await approvePost(id)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      toast.success('Post approved')
+      refresh()
+    } finally {
+      setApprovingId(null)
+    }
+  }
+
+  // Count drafts for badge
+  const draftCount = posts.filter((p) => p.status === 'draft').length
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Posts Library</h1>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            Posts Library
+            {draftCount > 0 && (
+              <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                {draftCount} draft{draftCount !== 1 ? 's' : ''}
+              </Badge>
+            )}
+          </h1>
           <p className="text-muted-foreground">Content variations for rotation.</p>
         </div>
         <div className="flex items-center gap-4">
+          {/* Status Filter */}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+            </SelectContent>
+          </Select>
           {/* Variation Group Filter */}
           <Select value={groupFilter} onValueChange={setGroupFilter}>
             <SelectTrigger className="w-[200px]">
@@ -166,26 +211,13 @@ export default function PostsLibraryPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Groups</SelectItem>
+              <SelectItem value="none">No Group</SelectItem>
               {groups.map((group) => (
                 <SelectItem key={group.id} value={group.id}>
                   {group.name}
                   {group.post_count !== undefined && (
                     <span className="text-muted-foreground ml-1">({group.post_count})</span>
                   )}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {/* Category Filter */}
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((cat) => (
-                <SelectItem key={cat.name} value={cat.name}>
-                  {cat.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -204,13 +236,11 @@ export default function PostsLibraryPage() {
       ) : posts.length === 0 ? (
         <div className="text-center py-12 border rounded-lg bg-muted/50">
           <p className="text-muted-foreground">
-            {groupFilter !== 'all' && categoryFilter !== 'all'
-              ? `No posts matching the selected group and category.`
-              : groupFilter !== 'all'
-                ? `No posts in the selected group.`
-                : categoryFilter !== 'all'
-                  ? `No posts in "${categoryFilter}" category.`
-                  : 'No posts in the library yet.'}
+            {groupFilter !== 'all'
+              ? `No posts in the selected group.`
+              : statusFilter !== 'all'
+                ? `No ${statusFilter} posts.`
+                : 'No posts in the library yet.'}
           </p>
           <Button variant="outline" className="mt-4" onClick={handleAddClick}>
             <Plus className="h-4 w-4 mr-2" />
@@ -218,97 +248,117 @@ export default function PostsLibraryPage() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-8">
-          {sortedCategories.map((category) => (
-            <div key={category} className="space-y-3">
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold">{category}</h2>
-                <Badge variant="secondary">{postsByCategory[category].length} posts</Badge>
-              </div>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[250px]">Title</TableHead>
-                      <TableHead>Day</TableHead>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Media</TableHead>
-                      <TableHead>Used</TableHead>
-                      <TableHead>Last Used</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="w-[100px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {postsByCategory[category]
-                      .sort((a, b) => (a.day_of_week ?? 0) - (b.day_of_week ?? 0) || (a.time ?? '').localeCompare(b.time ?? ''))
-                      .map((post) => (
-                        <TableRow key={post.id}>
-                          <TableCell>
-                            <PostPreviewPopover post={post}>
-                              <button className="flex items-center gap-2 text-left hover:text-primary transition-colors">
-                                <Eye className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-medium truncate max-w-[200px]">
-                                  {post.title}
-                                </span>
-                              </button>
-                            </PostPreviewPopover>
-                          </TableCell>
-                          <TableCell>{post.day_of_week !== null ? DAY_NAMES[post.day_of_week] : '-'}</TableCell>
-                          <TableCell>{post.time ? formatScheduleTime(post.time) : '-'}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              {post.image_url && (
-                                <Image className="h-4 w-4 text-muted-foreground" />
-                              )}
-                              {post.video_url && (
-                                <Video className="h-4 w-4 text-muted-foreground" />
-                              )}
-                              {!post.image_url && !post.video_url && (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>{post.use_count}x</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {post.last_used_at
-                              ? new Date(post.last_used_at).toLocaleDateString()
-                              : 'Never'}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={post.is_active ? 'default' : 'secondary'}>
-                              {post.is_active ? 'Active' : 'Inactive'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleEditClick(post)}>
-                                  <Pencil className="h-4 w-4 mr-2" />
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleDeleteClick(post.id)}
-                                  className="text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          ))}
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[280px]">Title</TableHead>
+                <TableHead>Group</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-[100px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedPosts.map((post) => (
+                <TableRow key={post.id} className={post.status === 'draft' ? 'bg-yellow-50' : undefined}>
+                  <TableCell>
+                    <PostPreviewPopover post={post}>
+                      <button className="flex items-center gap-2 text-left hover:text-primary transition-colors">
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium truncate max-w-[240px]">
+                          {post.title}
+                        </span>
+                      </button>
+                    </PostPreviewPopover>
+                  </TableCell>
+                  <TableCell>
+                    {post.variation_group_id ? (
+                      <span className="text-sm">{groupNameMap[post.variation_group_id] || 'Unknown'}</span>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {post.source === 'api' && (
+                      <Badge variant="outline" className="gap-1">
+                        <Bot className="h-3 w-3" />
+                        AI
+                      </Badge>
+                    )}
+                    {post.source === 'import' && (
+                      <Badge variant="outline" className="gap-1">
+                        <Upload className="h-3 w-3" />
+                        Import
+                      </Badge>
+                    )}
+                    {(!post.source || post.source === 'manual') && (
+                      <Badge variant="outline" className="gap-1 text-muted-foreground">
+                        <User className="h-3 w-3" />
+                        Manual
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {post.status === 'draft' && (
+                      <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">
+                        Draft
+                      </Badge>
+                    )}
+                    {post.status === 'approved' && (
+                      <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">
+                        Approved
+                      </Badge>
+                    )}
+                    {(!post.status || post.status === 'active') && (
+                      <Badge className="bg-green-100 text-green-800 hover:bg-green-200">
+                        Active
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      {post.status === 'draft' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleApprove(post.id)}
+                          disabled={approvingId === post.id}
+                          title="Approve post"
+                        >
+                          {approvingId === post.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Check className="h-4 w-4 text-green-600" />
+                          )}
+                        </Button>
+                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditClick(post)}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteClick(post.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
 
@@ -329,6 +379,8 @@ export default function PostsLibraryPage() {
                 video_url: editingPost.video_url || '',
                 is_active: editingPost.is_active,
                 variation_group_id: editingPost.variation_group_id ?? null,
+                status: editingPost.status,
+                source: editingPost.source,
               }
             : null
         }

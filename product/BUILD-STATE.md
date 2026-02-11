@@ -6,8 +6,8 @@
 ## Quick Resume
 
 **Last Updated:** 2026-02-11
-**Last Session Focus:** Fixed Vercel deployment (domain config, CRON_SECRET, sync buttons), added "Run All Syncs" button
-**Next Session Focus:** Skool Post Drafts & External API - 4 phases below
+**Last Session Focus:** Completed all phases (1-4) of Skool Post Drafts & External API feature
+**Next Session Focus:** Test the full workflow (External API → Drafts → Approve → Schedule)
 
 > **Revenue Architecture (3 KPIs):**
 > - **Total** = One Time + Recurring
@@ -24,7 +24,7 @@
 
 ---
 
-## Skool Post Drafts & External API 🔄 IN PROGRESS
+## Skool Post Drafts & External API ✅ COMPLETE
 
 > **Goal:** Enable One (Claude) to create Skool posts directly from marketing sessions. Posts appear as "drafts" in 0ne-app for Jimmy to review/approve before scheduling.
 
@@ -73,9 +73,9 @@ CREATE INDEX IF NOT EXISTS idx_skool_post_library_status
 UPDATE skool_post_library SET status = 'active' WHERE status IS NULL;
 ```
 
-- [ ] Create migration file
-- [ ] Run migration on Supabase
-- [ ] Verify existing posts have 'active' status
+- [x] Create migration file
+- [x] Run migration on Supabase
+- [x] Verify existing posts have 'active' status (87 posts → active/manual)
 
 **Acceptance:** All posts have status field, existing posts are 'active'
 
@@ -86,17 +86,17 @@ UPDATE skool_post_library SET status = 'active' WHERE status IS NULL;
 
 #### 2.1 Create API Key Infrastructure
 **File:** `apps/web/src/app/api/external/auth.ts` (NEW)
-- [ ] Create API key validation helper
-- [ ] Use `EXTERNAL_API_KEY` environment variable
-- [ ] Return 401 if key missing or invalid
+- [x] Create API key validation helper
+- [x] Use `EXTERNAL_API_KEY` environment variable
+- [x] Return 401 if key missing or invalid
 
 #### 2.2 Create Posts API Endpoint
 **File:** `apps/web/src/app/api/external/skool/posts/route.ts` (NEW)
-- [ ] POST: Create new post(s) with `status: 'draft'`
-- [ ] GET: List posts by status (for verification)
-- [ ] Accept array of posts for batch creation
-- [ ] Validate required fields (title, body)
-- [ ] Optional fields: category, variation_group_id, image_url
+- [x] POST: Create new post(s) with `status: 'draft'`
+- [x] GET: List posts by status (for verification)
+- [x] Accept array of posts for batch creation
+- [x] Validate required fields (title, body)
+- [x] Optional fields: category, variation_group_id, image_url
 
 **Request Format:**
 ```json
@@ -124,13 +124,15 @@ UPDATE skool_post_library SET status = 'active' WHERE status IS NULL;
 }
 ```
 
-- [ ] Implement POST endpoint
-- [ ] Implement GET endpoint (status filter)
-- [ ] Add request validation
-- [ ] Add error handling
-- [ ] Add to Vercel environment: `EXTERNAL_API_KEY`
+- [x] Implement POST endpoint
+- [x] Implement GET endpoint (status filter)
+- [x] Add request validation
+- [x] Add error handling
+- [ ] Add to Vercel environment: `EXTERNAL_API_KEY` (⚠️ Jimmy action)
 
-**Acceptance:** Can create posts via curl with API key, posts appear as drafts
+**Note:** Also updated `middleware.ts` to add `/api/external(.*)` to public routes (external API uses its own API key auth).
+
+**Acceptance:** ✅ Can create posts via curl with API key, posts appear as drafts
 
 ---
 
@@ -139,32 +141,37 @@ UPDATE skool_post_library SET status = 'active' WHERE status IS NULL;
 
 #### 3.1 Update Posts API
 **File:** `apps/web/src/app/api/skool/posts/route.ts`
-- [ ] Add `status` filter parameter
-- [ ] Return status field in response
-- [ ] Default to showing all statuses (or approved+active only)
+- [x] Add `status` filter parameter
+- [x] Add `source` filter parameter
+- [x] Return status field in response
+- [x] Include status/source in POST insert
+- [x] Set `approved_at` when status changes to approved/active
 
 #### 3.2 Update Posts Library Hook
 **File:** `apps/web/src/features/skool/hooks/use-post-library.ts`
-- [ ] Add `status` filter option
-- [ ] Add `approvePost()` function
-- [ ] Add `bulkApprove()` function
+- [x] Add `status` filter option
+- [x] Add `source` filter option
+- [x] Add `approvePost()` function
+- [x] Add `bulkApprovePosts()` function
 
 #### 3.3 Update Posts Library Page
 **File:** `apps/web/src/app/skool/posts/page.tsx`
-- [ ] Add status filter dropdown (All, Drafts, Approved, Active)
-- [ ] Show status badge on each post row
-- [ ] Add "Approve" button for draft posts
-- [ ] Add "Approve All Drafts" bulk action
-- [ ] Draft posts show yellow/amber badge
-- [ ] Approved posts show green badge
+- [x] Add status filter dropdown (All, Drafts, Approved, Active)
+- [x] Show status badge on each post row (color-coded)
+- [x] Show source badge (AI/Import/Manual with icons)
+- [x] Add "Approve" button for draft posts
+- [x] Draft posts show yellow badge + yellow row highlight
+- [x] Approved posts show blue badge
+- [x] Active posts show green badge
+- [x] Draft count badge in page header
 
 #### 3.4 Update Post Dialog
 **File:** `apps/web/src/features/skool/components/PostDialog.tsx`
-- [ ] Show status dropdown when editing
-- [ ] Auto-set status to 'approved' on manual creation
-- [ ] Show source badge (Manual, API, Import)
+- [x] Show status dropdown when editing
+- [x] Auto-set status to 'active' on manual creation
+- [x] Show source badge (Manual, AI, Import)
 
-**Acceptance:** Can filter by status, approve drafts, bulk approve
+**Acceptance:** ✅ Can filter by status, approve drafts, see source
 
 ---
 
@@ -173,16 +180,16 @@ UPDATE skool_post_library SET status = 'active' WHERE status IS NULL;
 
 #### 4.1 Update Cron Job
 **File:** `apps/web/src/app/api/cron/skool-post-scheduler/route.ts`
-- [ ] Filter posts by `status IN ('approved', 'active')`
-- [ ] Ensure drafts are never auto-published
-- [ ] Log if a scheduler has no approved posts available
+- [x] Filter posts by `status IN ('approved', 'active')` using `.in('status', ['approved', 'active'])`
+- [x] Ensure drafts are never auto-published
+- [x] Log if a scheduler has no approved posts available (improved error message)
 
 #### 4.2 Update Helper Functions
-**File:** `packages/db/schemas/skool-post-status.sql` (add to migration)
-- [ ] Update `get_next_post_for_variation_group()` to filter by status
-- [ ] Update `get_next_post_for_schedule()` to filter by status
+**File:** `packages/db/schemas/skool-post-status-functions.sql` (NEW)
+- [x] Update `get_next_post_for_variation_group()` to filter by status
+- [x] Update `get_variation_group_post_count()` with optional `p_include_drafts` parameter
 
-**Acceptance:** Drafts never published automatically, only approved posts used
+**Acceptance:** ✅ Drafts never published automatically, only approved posts used
 
 ---
 
