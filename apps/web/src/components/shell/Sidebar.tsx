@@ -50,7 +50,13 @@ const allAppsNavigation: NavItem[] = [
     children: getAppNavigation('kpi').map(item => ({ name: item.name, href: item.href }))
   },
   { name: 'Prospector', href: '/prospector', icon: Users, appId: 'prospector' },
-  { name: 'Skool Sync', href: '/skool-sync', icon: Link2, appId: 'skoolSync' },
+  {
+    name: 'Skool Sync',
+    href: '/skool-sync',
+    icon: Link2,
+    appId: 'skoolSync',
+    children: getAppNavigation('skoolSync').map(item => ({ name: item.name, href: item.href }))
+  },
   {
     name: 'Skool Scheduler',
     href: '/skool',

@@ -111,6 +111,10 @@ export function getAppNavigation(appId: AppId): AppNavItem[] {
         { name: 'Library', href: '/media', icon: LayoutDashboard },
         { name: 'Upload', href: '/media/upload', icon: Upload },
       ]
+    case 'skoolSync':
+      return [
+        { name: 'Hand-Raisers', href: '/skool-sync/hand-raisers', icon: MessageSquare },
+      ]
     default:
       return []
   }
