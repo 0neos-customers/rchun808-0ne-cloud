@@ -23,6 +23,8 @@ const isPublicRoute = createRouteMatcher([
   '/api/public(.*)',
   '/api/cron(.*)',
   '/api/external(.*)', // External API uses API key auth
+  '/api/auth(.*)', // OAuth callbacks
+  '/api/webhooks(.*)', // Webhooks from external services
 ])
 
 const appRoutes: Record<string, AppId> = {
