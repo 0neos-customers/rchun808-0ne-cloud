@@ -75,17 +75,16 @@ export async function GET(request: Request) {
       code: code?.substring(0, 10) + '...',
     })
 
-    // Try with Basic Auth header (some OAuth providers require this)
-    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
-
+    // GHL OAuth requires client_id and client_secret in the body
     const response = await fetch(GHL_OAUTH_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         Accept: 'application/json',
-        Authorization: `Basic ${basicAuth}`,
       },
       body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
         grant_type: 'authorization_code',
         code,
         redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/marketplace/callback`,
