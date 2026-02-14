@@ -120,6 +120,8 @@ export {
   syncInboundMessages,
   sendPendingMessages,
   getEnabledSyncConfigs,
+  // Extension message sync (Phase 2 - Skool Sync)
+  syncExtensionMessages,
   // Hand-raiser functions (Phase 7)
   processHandRaisers,
   getUsersWithActiveHandRaisers,
@@ -135,7 +137,9 @@ export {
   type SyncEngineConfig,
   type SyncOptions,
   type InboundSyncResult,
+  type InboundSyncOptions,
   type SendPendingResult,
+  type ExtensionSyncResult,
 } from './lib/sync-engine'
 
 // =============================================================================

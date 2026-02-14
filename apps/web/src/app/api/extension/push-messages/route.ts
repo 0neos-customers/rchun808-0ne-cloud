@@ -154,17 +154,18 @@ export async function POST(request: NextRequest) {
 
       try {
         // Map to existing dm_messages schema
+        // Extension-captured messages need GHL sync, so status='pending' and ghl_message_id=null
         const messageRow = {
           user_id: staffSkoolId,
           skool_conversation_id: conversationId,
           skool_message_id: msg.id,
           skool_user_id: msg.senderId,
+          sender_name: msg.senderName || null, // Store sender name for contact matching
           direction: msg.isOwnMessage ? 'outbound' : 'inbound',
           message_text: msg.content,
-          status: 'synced', // Extension-captured messages are considered synced
-          synced_at: new Date().toISOString(),
-          // Note: timestamp, sender_name, and attachments aren't in the base schema
-          // The existing schema stores skool_user_id which can be used to lookup names
+          status: 'pending', // Extension messages need GHL sync
+          synced_at: null, // Will be set when pushed to GHL
+          // ghl_message_id will be null until synced to GHL
         }
 
         const { error } = await supabase.from('dm_messages').insert(messageRow)

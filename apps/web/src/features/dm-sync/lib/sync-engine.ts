@@ -73,6 +73,20 @@ export interface SendPendingResult {
   errorDetails: SyncError[]
 }
 
+/**
+ * Result from extension message sync operation
+ */
+export interface ExtensionSyncResult {
+  synced: number
+  skipped: number
+  errors: number
+  errorDetails: Array<{
+    messageId?: string
+    conversationId?: string
+    error: string
+  }>
+}
+
 // =============================================================================
 // SYNC ENGINE CONFIGURATION
 // =============================================================================
@@ -105,6 +119,18 @@ export interface SyncOptions {
 // =============================================================================
 
 /**
+ * Sync options for inbound sync
+ */
+export interface InboundSyncOptions {
+  /** Enable full backfill mode (fetch all historical messages) */
+  backfill?: boolean
+  /** Maximum messages per conversation in backfill mode */
+  maxMessagesPerConversation?: number
+  /** Only sync specific conversation (by Skool user ID) */
+  filterUserId?: string
+}
+
+/**
  * Sync inbound messages from Skool to GHL
  *
  * 1. Get inbox from Skool using SkoolDmClient
@@ -116,10 +142,12 @@ export interface SyncOptions {
  * 7. Insert into dm_messages with status='synced'
  *
  * @param userId - The user ID for multi-tenant support
+ * @param options - Sync options (backfill, filters, etc.)
  * @returns Sync result with counts
  */
 export async function syncInboundMessages(
-  userId: string
+  userId: string,
+  options?: InboundSyncOptions
 ): Promise<InboundSyncResult> {
   const supabase = createServerClient()
   const result: InboundSyncResult = {
@@ -168,11 +196,26 @@ export async function syncInboundMessages(
     )
 
     // Get Skool inbox (conversations)
-    const conversations = await skoolClient.getInbox(0, DEFAULT_MAX_CONVERSATIONS)
+    // In backfill mode, get all conversations; otherwise just recent ones
+    // Note: Skool API limit is 25 per request
+    const conversations = options?.backfill
+      ? await skoolClient.getAllInbox() // Fetch all pages
+      : await skoolClient.getInbox(0, DEFAULT_MAX_CONVERSATIONS)
     console.log(`[Sync Engine] Found ${conversations.length} conversations`)
 
+    // Filter conversations if requested
+    const filteredConversations = options?.filterUserId
+      ? conversations.filter(c => c.participant.id === options.filterUserId)
+      : conversations
+
+    if (options?.filterUserId) {
+      console.log(
+        `[Sync Engine] Filtered to ${filteredConversations.length} conversations for user ${options.filterUserId}`
+      )
+    }
+
     // Process each conversation
-    for (const conversation of conversations) {
+    for (const conversation of filteredConversations) {
       try {
         await processConversation(
           userId,
@@ -181,7 +224,11 @@ export async function syncInboundMessages(
           skoolClient,
           ghlClient,
           supabase,
-          result
+          result,
+          {
+            backfill: options?.backfill,
+            maxMessages: options?.maxMessagesPerConversation ?? 200,
+          }
         )
 
         // Rate limiting
@@ -225,13 +272,18 @@ async function processConversation(
   skoolClient: SkoolDmClient,
   ghlClient: GhlConversationProviderClient,
   supabase: ReturnType<typeof createServerClient>,
-  result: InboundSyncResult
+  result: InboundSyncResult,
+  options?: { backfill?: boolean; maxMessages?: number }
 ): Promise<void> {
   // Get messages for this conversation
-  const messages = await skoolClient.getMessages(
-    conversation.channelId,
-    '1' // Get all messages from beginning
-  )
+  // Use getAllMessages for full backfill, or getMessages for incremental sync
+  const messages = options?.backfill
+    ? await skoolClient.getAllMessages(conversation.channelId, {
+        maxMessages: options.maxMessages ?? 200,
+      })
+    : await skoolClient.getMessages(conversation.channelId, {
+        limit: 50, // Default to recent messages
+      })
 
   console.log(
     `[Sync Engine] Processing ${messages.length} messages for conversation ${conversation.id}`
@@ -569,6 +621,254 @@ export async function sendPendingMessages(
     result.failed++
     result.errorDetails.push({
       error: `Fatal send error: ${errorMessage}`,
+    })
+  }
+
+  return result
+}
+
+// =============================================================================
+// EXTENSION MESSAGE SYNC
+// =============================================================================
+
+/**
+ * Group array items by a key
+ */
+function groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
+  return array.reduce(
+    (result, item) => {
+      const groupKey = String(item[key])
+      if (!result[groupKey]) {
+        result[groupKey] = []
+      }
+      result[groupKey].push(item)
+      return result
+    },
+    {} as Record<string, T[]>
+  )
+}
+
+/**
+ * Sync extension-captured messages to GHL
+ *
+ * Processes messages in dm_messages that have ghl_message_id = NULL
+ * These are messages captured by the Chrome extension that haven't
+ * been pushed to GHL yet.
+ *
+ * @param userId - The user ID for multi-tenant support
+ * @returns ExtensionSyncResult with counts
+ */
+export async function syncExtensionMessages(
+  userId: string
+): Promise<ExtensionSyncResult> {
+  const supabase = createServerClient()
+  const result: ExtensionSyncResult = {
+    synced: 0,
+    skipped: 0,
+    errors: 0,
+    errorDetails: [],
+  }
+
+  console.log(`[Sync Engine] Starting extension message sync for user: ${userId}`)
+
+  try {
+    // 1. Get user's sync config
+    const { data: syncConfig, error: configError } = await supabase
+      .from('dm_sync_config')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('enabled', true)
+      .single()
+
+    if (configError || !syncConfig) {
+      console.log(`[Sync Engine] No enabled sync config for user: ${userId}`)
+      return result
+    }
+
+    // 2. Get stored GHL tokens
+    const storedTokens = await getStoredTokens(userId)
+
+    // 3. Create GHL client with persistence
+    const ghlClient = await createGhlConversationProviderClientWithPersistence(
+      userId,
+      syncConfig.ghl_location_id,
+      process.env.GHL_CONVERSATION_PROVIDER_ID,
+      storedTokens
+        ? {
+            refreshToken: storedTokens.refreshToken,
+            accessToken: storedTokens.accessToken,
+            expiresAt: storedTokens.expiresAt,
+          }
+        : undefined
+    )
+
+    // 4. Query messages with ghl_message_id IS NULL AND status = 'pending'
+    // These are extension-captured messages that need to be synced to GHL
+    const { data: pendingMessages, error: queryError } = await supabase
+      .from('dm_messages')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'pending')
+      .is('ghl_message_id', null)
+      .order('created_at', { ascending: true })
+      .limit(100) // Process up to 100 messages per run
+
+    if (queryError) {
+      throw new Error(`Failed to query pending messages: ${queryError.message}`)
+    }
+
+    if (!pendingMessages || pendingMessages.length === 0) {
+      console.log('[Sync Engine] No extension messages to sync')
+      return result
+    }
+
+    console.log(
+      `[Sync Engine] Found ${pendingMessages.length} extension messages to sync`
+    )
+
+    // 5. Group by conversation for efficient contact lookup
+    const messagesByConversation = groupBy(
+      pendingMessages as DmMessageRow[],
+      'skool_conversation_id'
+    )
+
+    // 6. Process each conversation
+    for (const [conversationId, messages] of Object.entries(messagesByConversation)) {
+      // Get the first message to extract skool_user_id for contact lookup
+      const firstMessage = messages[0]
+      const skoolUserId = firstMessage.skool_user_id
+
+      try {
+        // Find/create GHL contact for this Skool user
+        const contactResult = await findOrCreateGhlContact(
+          userId,
+          skoolUserId,
+          '', // We don't have username from the message
+          ''  // We don't have displayName from the message
+        )
+
+        if (!contactResult.ghlContactId) {
+          console.log(
+            `[Sync Engine] Could not find/create GHL contact for Skool user ${skoolUserId}, skipping conversation`
+          )
+          result.skipped += messages.length
+          continue
+        }
+
+        const ghlContactId = contactResult.ghlContactId
+
+        // Process each message in this conversation
+        for (const message of messages) {
+          try {
+            // Skip messages with no content
+            const messageContent = message.message_text || ''
+            if (!messageContent.trim()) {
+              console.log(
+                `[Sync Engine] Skipping empty extension message ${message.id}`
+              )
+              result.skipped++
+              continue
+            }
+
+            // Push to GHL using appropriate endpoint based on direction
+            let ghlMessageId: string
+
+            if (message.direction === 'outbound') {
+              // Outbound message (from Jimmy to contact) - appears on RIGHT side in GHL
+              console.log(
+                `[Sync Engine] Syncing extension outbound: ${message.id}`
+              )
+              ghlMessageId = await ghlClient.pushOutboundMessage(
+                syncConfig.ghl_location_id,
+                ghlContactId,
+                skoolUserId,
+                messageContent,
+                message.skool_message_id
+              )
+            } else {
+              // Inbound message (from contact to Jimmy) - appears on LEFT side in GHL
+              console.log(
+                `[Sync Engine] Syncing extension inbound: ${message.id}`
+              )
+              ghlMessageId = await ghlClient.pushInboundMessage(
+                syncConfig.ghl_location_id,
+                ghlContactId,
+                skoolUserId,
+                messageContent,
+                message.skool_message_id
+              )
+            }
+
+            // Update row with ghl_message_id, status='synced', synced_at
+            const { error: updateError } = await supabase
+              .from('dm_messages')
+              .update({
+                ghl_message_id: ghlMessageId,
+                status: 'synced',
+                synced_at: new Date().toISOString(),
+              })
+              .eq('id', message.id)
+
+            if (updateError) {
+              throw new Error(
+                `Failed to update message status: ${updateError.message}`
+              )
+            }
+
+            result.synced++
+            console.log(
+              `[Sync Engine] Synced extension message ${message.id} -> ${ghlMessageId}`
+            )
+
+            // Rate limiting
+            await delay(REQUEST_DELAY_MS)
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : String(error)
+            console.error(
+              `[Sync Engine] Error syncing extension message ${message.id}:`,
+              errorMessage
+            )
+            result.errors++
+            result.errorDetails.push({
+              messageId: message.id,
+              conversationId,
+              error: errorMessage,
+            })
+
+            // Mark message as failed
+            await supabase
+              .from('dm_messages')
+              .update({ status: 'failed' })
+              .eq('id', message.id)
+          }
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        console.error(
+          `[Sync Engine] Error processing extension conversation ${conversationId}:`,
+          errorMessage
+        )
+        result.errors += messages.length
+        result.errorDetails.push({
+          conversationId,
+          error: errorMessage,
+        })
+      }
+    }
+
+    console.log(
+      `[Sync Engine] Extension sync complete: synced=${result.synced}, skipped=${result.skipped}, errors=${result.errors}`
+    )
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.error(
+      '[Sync Engine] Fatal error during extension sync:',
+      errorMessage
+    )
+    result.errors++
+    result.errorDetails.push({
+      error: `Fatal sync error: ${errorMessage}`,
     })
   }
 

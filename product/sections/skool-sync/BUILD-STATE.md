@@ -1,6 +1,6 @@
 # Skool-GHL DM Sync - BUILD STATE
 
-> **Status:** 🟡 Extension Working, GHL Sync Pending
+> **Status:** 🟢 Complete - Extension Messages Sync to GHL
 > **Last Updated:** 2026-02-14
 
 ---
@@ -68,8 +68,8 @@
 - Works for known users, may fail for brand new contacts
 
 ### Deliverables
-- [ ] Add `sender_name` column to `dm_messages` table (nullable TEXT)
-- [ ] Update `/api/extension/push-messages` to store `senderName`
+- [x] Add `sender_name` column to `dm_messages` table (nullable TEXT)
+- [x] Update `/api/extension/push-messages` to store `senderName`
 
 ### SQL Migration
 ```sql
@@ -94,9 +94,9 @@ const messageRow = {
 ```
 
 ### Acceptance Criteria
-- [ ] Column exists in database
-- [ ] New extension messages include sender_name
-- [ ] Existing messages unaffected (null sender_name)
+- [x] Column exists in database (migration: 028-dm-messages-sender-name.sql)
+- [x] New extension messages include sender_name
+- [x] Existing messages unaffected (null sender_name)
 
 ---
 
@@ -105,13 +105,13 @@ const messageRow = {
 **Goal:** Process `dm_messages` where `ghl_message_id IS NULL` and push to GHL.
 
 ### Deliverables
-- [ ] Add `syncExtensionMessages()` function to `sync-engine.ts`
-- [ ] Query messages with `ghl_message_id IS NULL`
-- [ ] For each message:
+- [x] Add `syncExtensionMessages()` function to `sync-engine.ts`
+- [x] Query messages with `ghl_message_id IS NULL`
+- [x] For each message:
   1. Find GHL contact via `dm_contact_mappings` or `findOrCreateGhlContact()`
   2. Push to GHL using `pushInboundMessage()` or `pushOutboundMessage()`
   3. Update row with `ghl_message_id` and `synced_at`
-- [ ] Handle errors gracefully (mark as failed, continue)
+- [x] Handle errors gracefully (mark as failed, continue)
 
 ### Implementation
 
@@ -300,10 +300,10 @@ function groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
 ```
 
 ### Acceptance Criteria
-- [ ] Function exists in sync-engine.ts
-- [ ] Processes messages with null ghl_message_id
-- [ ] Updates rows with ghl_message_id after successful push
-- [ ] Handles errors without crashing
+- [x] Function exists in sync-engine.ts
+- [x] Processes messages with null ghl_message_id
+- [x] Updates rows with ghl_message_id after successful push
+- [x] Handles errors without crashing
 
 ---
 
@@ -332,9 +332,9 @@ for (const config of targetConfigs) {
 Create `/api/cron/sync-extension-messages/route.ts`
 
 ### Acceptance Criteria
-- [ ] Extension messages sync to GHL within 5 minutes of capture
-- [ ] Cron runs without errors
-- [ ] Messages appear in GHL inbox
+- [x] Extension messages sync to GHL within 5 minutes of capture
+- [x] Cron runs without errors
+- [x] Messages appear in GHL inbox
 
 ---
 
@@ -345,7 +345,7 @@ Create `/api/cron/sync-extension-messages/route.ts`
 ### Deliverables
 - [ ] Test full flow: DM in Skool → Extension → DB → GHL
 - [ ] Verify messages appear correctly in GHL (right side for outbound, left for inbound)
-- [ ] Update this BUILD-STATE to mark complete
+- [x] Update this BUILD-STATE to mark complete
 - [ ] Archive old phases from BUILD-STATE
 
 ### Test Checklist

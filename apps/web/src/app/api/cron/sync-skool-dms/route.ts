@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
   syncInboundMessages,
+  syncExtensionMessages,
   getEnabledSyncConfigs,
   type InboundSyncResult,
 } from '@/features/dm-sync'
@@ -25,18 +26,26 @@ export const maxDuration = 300 // 5 minutes max for sync
  *
  * Query params:
  * - user_id: Optional - sync only for specific user
+ * - backfill: Optional - enable full history backfill mode (true/false)
+ * - max_messages: Optional - max messages per conversation in backfill mode (default: 200)
+ * - skool_user_id: Optional - sync only for specific Skool user (by their Skool ID)
  */
 export async function GET(request: NextRequest) {
-  // Verify cron secret
+  // Verify cron secret (allow localhost bypass for development)
   const authHeader = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
+  const isLocalhost = request.headers.get('host')?.includes('localhost')
+  const bypassAuth = isLocalhost && request.nextUrl.searchParams.get('dev') === 'true'
 
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!bypassAuth && (!cronSecret || authHeader !== `Bearer ${cronSecret}`)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const { searchParams } = new URL(request.url)
   const specificUserId = searchParams.get('user_id')
+  const backfillMode = searchParams.get('backfill') === 'true'
+  const maxMessages = parseInt(searchParams.get('max_messages') || '200', 10)
+  const filterSkoolUserId = searchParams.get('skool_user_id')
 
   const startTime = Date.now()
   console.log('[sync-skool-dms] Starting inbound sync')
@@ -82,8 +91,12 @@ export async function GET(request: NextRequest) {
 
     for (const config of targetConfigs) {
       try {
-        console.log(`[sync-skool-dms] Syncing user: ${config.user_id}`)
-        const result = await syncInboundMessages(config.user_id)
+        console.log(`[sync-skool-dms] Syncing user: ${config.user_id}${backfillMode ? ' (BACKFILL MODE)' : ''}`)
+        const result = await syncInboundMessages(config.user_id, {
+          backfill: backfillMode,
+          maxMessagesPerConversation: maxMessages,
+          filterUserId: filterSkoolUserId || undefined,
+        })
         results.push({
           userId: config.user_id,
           result,
@@ -106,6 +119,23 @@ export async function GET(request: NextRequest) {
             ],
           },
         })
+      }
+    }
+
+    // Also sync extension-captured messages to GHL
+    for (const config of targetConfigs) {
+      try {
+        const extResult = await syncExtensionMessages(config.user_id)
+        console.log(`[sync-skool-dms] Extension sync for ${config.user_id}: synced=${extResult.synced}, skipped=${extResult.skipped}, errors=${extResult.errors}`)
+        // Add extension results to the user's results
+        const userResult = results.find((r) => r.userId === config.user_id)
+        if (userResult) {
+          userResult.result.synced += extResult.synced
+          userResult.result.skipped += extResult.skipped
+          userResult.result.errors += extResult.errors
+        }
+      } catch (error) {
+        console.error(`[sync-skool-dms] Extension sync error for ${config.user_id}:`, error)
       }
     }
 
@@ -140,6 +170,7 @@ export async function GET(request: NextRequest) {
         skipped: r.result.skipped,
         errors: r.result.errors,
         errorDetails: r.result.errorDetails,
+        debugInfo: bypassAuth ? r.result.debugInfo : undefined,
       })),
     })
   } catch (error) {
