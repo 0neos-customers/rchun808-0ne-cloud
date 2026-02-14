@@ -139,6 +139,7 @@ export async function GET(request: NextRequest) {
         synced: r.result.synced,
         skipped: r.result.skipped,
         errors: r.result.errors,
+        errorDetails: r.result.errorDetails,
       })),
     })
   } catch (error) {
