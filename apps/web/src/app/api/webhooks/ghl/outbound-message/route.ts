@@ -21,6 +21,10 @@ import {
   verifyGhlWebhookSignature,
   type GhlOutboundMessagePayload,
 } from '@/features/dm-sync/lib/ghl-conversation'
+import {
+  resolveOutboundStaff,
+  formatOutboundMessage,
+} from '@/features/dm-sync/lib/staff-users'
 
 // Disable body parsing - we need raw body for signature verification
 export const runtime = 'nodejs'
@@ -38,6 +42,10 @@ interface DmMessageInsert {
   direction: 'inbound' | 'outbound'
   message_text: string | null
   status: 'synced' | 'pending' | 'failed'
+  // Phase 5: Multi-staff support
+  staff_skool_id?: string | null
+  staff_display_name?: string | null
+  ghl_user_id?: string | null
 }
 
 /**
@@ -137,7 +145,26 @@ export async function POST(request: Request) {
       userId: typedMapping.user_id,
     })
 
-    // 6. Get or create a placeholder conversation ID for Skool
+    // 6. Phase 5: Resolve which staff should send this message
+    // Extract GHL user ID from payload if available (depends on GHL webhook format)
+    // GHL webhook may include userId field for the sender
+    const ghlSenderUserId = (payload as unknown as Record<string, unknown>).userId as string | undefined
+
+    const { staff, processedMessage } = await resolveOutboundStaff(
+      typedMapping.user_id,
+      body,
+      ghlSenderUserId,
+      typedMapping.skool_user_id
+    )
+
+    console.log('[GHL Webhook] Resolved staff for outbound:', {
+      staffSkoolId: staff?.skoolUserId,
+      staffDisplayName: staff?.displayName,
+      matchMethod: staff?.matchMethod,
+      hasOverride: processedMessage !== body,
+    })
+
+    // 7. Get or create a placeholder conversation ID for Skool
     // In real sync, this would come from an existing Skool conversation
     // For now, we'll use the GHL conversation ID as a placeholder
     const skoolConversationId = `ghl:${conversationId}`
@@ -145,7 +172,12 @@ export async function POST(request: Request) {
     // Generate a unique message ID for Skool (will be updated when actually sent)
     const pendingSkoolMessageId = `pending:${Date.now()}:${Math.random().toString(36).substring(7)}`
 
-    // 7. Queue message for sending via Skool API
+    // 8. Format message with staff prefix if we have a staff member
+    const finalMessageText = staff
+      ? formatOutboundMessage(staff.displayName, processedMessage)
+      : processedMessage
+
+    // 9. Queue message for sending via Skool API
     // Insert into dm_messages with direction='outbound', status='pending'
     const messageInsert: DmMessageInsert = {
       user_id: typedMapping.user_id,
@@ -154,8 +186,12 @@ export async function POST(request: Request) {
       ghl_message_id: messageId || null,
       skool_user_id: typedMapping.skool_user_id,
       direction: 'outbound',
-      message_text: body,
+      message_text: finalMessageText,
       status: 'pending',
+      // Phase 5: Multi-staff attribution
+      staff_skool_id: staff?.skoolUserId || null,
+      staff_display_name: staff?.displayName || null,
+      ghl_user_id: ghlSenderUserId || null,
     }
 
     const { data: insertedMessage, error: insertError } = await supabase

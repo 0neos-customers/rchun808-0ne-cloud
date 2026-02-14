@@ -90,6 +90,27 @@ export interface DmMessageRow {
   status: 'synced' | 'pending' | 'failed'
   created_at: string
   synced_at: string | null
+  sender_name?: string | null
+  // Phase 5: Multi-staff support
+  staff_skool_id?: string | null
+  staff_display_name?: string | null
+  ghl_user_id?: string | null
+}
+
+/**
+ * Database row for staff_users table
+ */
+export interface StaffUserRow {
+  id: string
+  user_id: string
+  skool_user_id: string
+  skool_username: string | null
+  display_name: string
+  ghl_user_id: string | null
+  is_default: boolean
+  is_active: boolean
+  created_at: string
+  updated_at: string
 }
 
 /**
@@ -147,6 +168,22 @@ export interface ContactMapping {
   ghlContactId: string
   matchMethod: 'skool_id' | 'email' | 'name' | 'synthetic' | null
   createdAt: Date
+}
+
+/**
+ * Staff user for multi-staff DM attribution
+ */
+export interface StaffUser {
+  id: string
+  userId: string
+  skoolUserId: string
+  skoolUsername: string | null
+  displayName: string
+  ghlUserId: string | null
+  isDefault: boolean
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
 }
 
 /**

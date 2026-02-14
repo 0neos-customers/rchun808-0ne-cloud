@@ -23,12 +23,14 @@ export type {
   DmMessageRow,
   HandRaiserCampaignRow,
   HandRaiserSentRow,
+  StaffUserRow,
   // Domain types
   DmSyncConfig,
   ContactMapping,
   DmMessage,
   HandRaiserCampaign,
   HandRaiserSent,
+  StaffUser,
   // Result types
   SyncResult,
   SyncError,
@@ -162,3 +164,35 @@ export {
   type UseContactActivityOptions,
   type UseContactActivityReturn,
 } from './hooks/use-contact-activity'
+
+// =============================================================================
+// STAFF USERS (Phase 5)
+// =============================================================================
+
+export {
+  // CRUD operations
+  getStaffUsers,
+  getActiveStaffUsers,
+  getStaffBySkoolId,
+  getStaffByGhlUserId,
+  getDefaultStaff,
+  createStaffUser,
+  updateStaffUser,
+  deleteStaffUser,
+  // Routing logic
+  parseStaffOverride,
+  resolveOutboundStaff,
+  // Message formatting
+  formatInboundMessage,
+  formatOutboundMessage,
+  stripStaffPrefix,
+  // Types
+  type StaffUserInput,
+  type ResolvedStaff,
+} from './lib/staff-users'
+
+// =============================================================================
+// COMPONENTS
+// =============================================================================
+
+export { StaffUsersManager } from './components/StaffUsersManager'

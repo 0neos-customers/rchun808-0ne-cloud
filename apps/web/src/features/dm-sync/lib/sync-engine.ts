@@ -26,6 +26,11 @@ import {
   createGhlConversationProviderClientWithPersistence,
 } from './ghl-conversation'
 import { getStoredTokens } from './ghl-token-store'
+import {
+  getStaffBySkoolId,
+  formatInboundMessage,
+  formatOutboundMessage,
+} from './staff-users'
 
 // =============================================================================
 // CONFIGURATION
@@ -770,42 +775,90 @@ export async function syncExtensionMessages(
               continue
             }
 
+            // Phase 5: Get staff info for message attribution
+            let formattedContent = messageContent
+            let staffInfo: { skoolUserId: string; displayName: string } | null = null
+
+            // Check if message already has staff attribution
+            if (message.staff_skool_id && message.staff_display_name) {
+              staffInfo = {
+                skoolUserId: message.staff_skool_id,
+                displayName: message.staff_display_name,
+              }
+            } else {
+              // Try to look up staff by the sender's Skool ID
+              const staffUser = await getStaffBySkoolId(
+                message.direction === 'outbound' ? userId : message.skool_user_id
+              )
+              if (staffUser) {
+                staffInfo = {
+                  skoolUserId: staffUser.skool_user_id,
+                  displayName: staffUser.display_name,
+                }
+              }
+            }
+
+            // Format message with staff prefix
+            if (staffInfo) {
+              if (message.direction === 'outbound') {
+                formattedContent = formatOutboundMessage(
+                  staffInfo.displayName,
+                  messageContent
+                )
+              } else {
+                // For inbound, use sender_name if available
+                const senderName = message.sender_name || 'Contact'
+                formattedContent = formatInboundMessage(
+                  senderName,
+                  staffInfo.displayName,
+                  messageContent
+                )
+              }
+            }
+
             // Push to GHL using appropriate endpoint based on direction
             let ghlMessageId: string
 
             if (message.direction === 'outbound') {
               // Outbound message (from Jimmy to contact) - appears on RIGHT side in GHL
               console.log(
-                `[Sync Engine] Syncing extension outbound: ${message.id}`
+                `[Sync Engine] Syncing extension outbound: ${message.id} (staff: ${staffInfo?.displayName || 'none'})`
               )
               ghlMessageId = await ghlClient.pushOutboundMessage(
                 syncConfig.ghl_location_id,
                 ghlContactId,
                 skoolUserId,
-                messageContent,
+                formattedContent,
                 message.skool_message_id
               )
             } else {
               // Inbound message (from contact to Jimmy) - appears on LEFT side in GHL
               console.log(
-                `[Sync Engine] Syncing extension inbound: ${message.id}`
+                `[Sync Engine] Syncing extension inbound: ${message.id} (staff: ${staffInfo?.displayName || 'none'})`
               )
               ghlMessageId = await ghlClient.pushInboundMessage(
                 syncConfig.ghl_location_id,
                 ghlContactId,
                 skoolUserId,
-                messageContent,
+                formattedContent,
                 message.skool_message_id
               )
             }
 
-            // Update row with ghl_message_id, status='synced', synced_at
+            // Update row with ghl_message_id, status='synced', synced_at, and staff info
             const { error: updateError } = await supabase
               .from('dm_messages')
               .update({
                 ghl_message_id: ghlMessageId,
                 status: 'synced',
                 synced_at: new Date().toISOString(),
+                // Phase 5: Update staff attribution if we resolved it
+                ...(staffInfo && !message.staff_skool_id
+                  ? {
+                      staff_skool_id: staffInfo.skoolUserId,
+                      staff_display_name: staffInfo.displayName,
+                    }
+                  : {}),
               })
               .eq('id', message.id)
 

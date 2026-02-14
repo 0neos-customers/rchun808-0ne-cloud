@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import { createServerClient } from '@0ne/db/server'
 
 export const dynamic = 'force-dynamic'
@@ -7,7 +8,7 @@ export const dynamic = 'force-dynamic'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Clerk-User-Id',
 }
 
 /**
@@ -48,6 +49,7 @@ interface IncomingMessage {
 
 interface PushMessagesRequest {
   staffSkoolId: string
+  staffDisplayName?: string  // Phase 5: Staff display name for attribution
   conversationId: string
   messages: IncomingMessage[]
 }
@@ -60,9 +62,61 @@ interface PushMessagesResponse {
 }
 
 // =============================================
-// Auth Helper
+// Auth Helper (Phase 7: Supports both Clerk and API key)
 // =============================================
 
+interface AuthResult {
+  valid: boolean
+  authType: 'clerk' | 'apiKey' | null
+  userId?: string
+  skoolUserId?: string
+  error?: string
+}
+
+async function validateExtensionAuth(request: NextRequest): Promise<AuthResult> {
+  const authHeader = request.headers.get('authorization')
+
+  if (!authHeader) {
+    return { valid: false, authType: null, error: 'Missing Authorization header' }
+  }
+
+  // Check for Clerk auth first (Clerk <token>)
+  if (authHeader.startsWith('Clerk ')) {
+    try {
+      const { userId } = await auth()
+      if (userId) {
+        // Get the linked Skool user ID from Clerk metadata
+        const client = await clerkClient()
+        const user = await client.users.getUser(userId)
+        const skoolUserId = (user.publicMetadata?.skoolUserId as string) || undefined
+
+        return { valid: true, authType: 'clerk', userId, skoolUserId }
+      }
+      return { valid: false, authType: 'clerk', error: 'Invalid or expired Clerk session' }
+    } catch {
+      return { valid: false, authType: 'clerk', error: 'Failed to validate Clerk session' }
+    }
+  }
+
+  // Check for Bearer token (API key)
+  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i)
+  if (bearerMatch) {
+    const expectedKey = process.env.EXTENSION_API_KEY
+    if (!expectedKey) {
+      console.error('[Extension API] EXTENSION_API_KEY environment variable not set')
+      return { valid: false, authType: 'apiKey', error: 'Server configuration error' }
+    }
+
+    if (bearerMatch[1] === expectedKey) {
+      return { valid: true, authType: 'apiKey' }
+    }
+    return { valid: false, authType: 'apiKey', error: 'Invalid API key' }
+  }
+
+  return { valid: false, authType: null, error: 'Invalid Authorization header format' }
+}
+
+// Legacy function for backward compatibility
 function validateExtensionApiKey(request: NextRequest): NextResponse | null {
   const authHeader = request.headers.get('authorization')
   const expectedKey = process.env.EXTENSION_API_KEY
@@ -107,12 +161,22 @@ function validateExtensionApiKey(request: NextRequest): NextResponse | null {
 // =============================================
 
 export async function POST(request: NextRequest) {
-  // Validate API key
-  const authError = validateExtensionApiKey(request)
-  if (authError) return authError
+  // Validate auth (supports both Clerk and API key)
+  const authResult = await validateExtensionAuth(request)
+  if (!authResult.valid) {
+    return NextResponse.json(
+      { error: authResult.error },
+      { status: 401, headers: corsHeaders }
+    )
+  }
 
   try {
     const body: PushMessagesRequest = await request.json()
+
+    // If using Clerk auth and staffSkoolId not provided, use linked Skool ID
+    if (authResult.authType === 'clerk' && !body.staffSkoolId && authResult.skoolUserId) {
+      body.staffSkoolId = authResult.skoolUserId
+    }
 
     // Validate request structure
     const validationError = validateRequest(body)
@@ -120,10 +184,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validationError }, { status: 400, headers: corsHeaders })
     }
 
-    const { staffSkoolId, conversationId, messages } = body
+    const { staffSkoolId, staffDisplayName, conversationId, messages } = body
 
     console.log(
-      `[Extension API] Received ${messages.length} messages for conversation ${conversationId}`
+      `[Extension API] Received ${messages.length} messages for conversation ${conversationId} (staff: ${staffSkoolId})`
     )
 
     const supabase = createServerClient()
@@ -166,6 +230,9 @@ export async function POST(request: NextRequest) {
           status: 'pending', // Extension messages need GHL sync
           synced_at: null, // Will be set when pushed to GHL
           // ghl_message_id will be null until synced to GHL
+          // Phase 5: Multi-staff attribution
+          staff_skool_id: msg.isOwnMessage ? staffSkoolId : null,
+          staff_display_name: msg.isOwnMessage ? (staffDisplayName || null) : null,
         }
 
         const { error } = await supabase.from('dm_messages').insert(messageRow)

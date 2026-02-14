@@ -28,6 +28,7 @@ import {
 } from '@0ne/ui'
 import { RefreshCw, Loader2, CheckCircle2, XCircle, Clock, Play, Calendar, PlayCircle, MessageSquare, ArrowDownLeft, ArrowUpRight, Users, Inbox } from 'lucide-react'
 import { AppShell } from '@/components/shell'
+import { StaffUsersManager } from '@/features/dm-sync/components/StaffUsersManager'
 import {
   useSyncLog,
   useSchedules,
@@ -719,6 +720,9 @@ export default function SyncPage() {
 
         {/* DM Sync Stats */}
         <DMSyncStats />
+
+        {/* Staff Users Manager - Phase 5 */}
+        <StaffUsersManager />
 
         <Card>
           <CardHeader>
