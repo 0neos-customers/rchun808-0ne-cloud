@@ -369,6 +369,74 @@ export class GhlConversationProviderClient {
   }
 
   /**
+   * Push outbound message from Jimmy (Skool) to GHL inbox
+   *
+   * This creates a message in the GHL unified inbox that represents
+   * Jimmy's outbound message to the contact.
+   *
+   * Note: GHL Conversation Provider doesn't support direct outbound via API.
+   * We use the inbound endpoint with a visual indicator (→) to show direction.
+   * The message will appear on the LEFT but with a clear "Jimmy replied:" prefix.
+   *
+   * @param locationId - GHL location ID
+   * @param contactId - GHL contact ID
+   * @param skoolUserId - Skool user ID (the contact's Skool ID)
+   * @param messageText - The message content
+   * @param skoolMessageId - Skool message ID (used as altId for deduplication)
+   * @returns GHL message ID
+   */
+  async pushOutboundMessage(
+    locationId: string,
+    contactId: string,
+    skoolUserId: string,
+    messageText: string,
+    skoolMessageId: string
+  ): Promise<string> {
+    console.log('[GHL Provider] Pushing outbound (synced from Skool) message:', {
+      contactId,
+      skoolUserId,
+      messageLength: messageText?.length || 0,
+      altId: skoolMessageId,
+    })
+
+    // GHL Conversation Provider doesn't support direct outbound messages via API
+    // (that flow is meant to go: GHL UI → webhook → your app → deliver to channel)
+    //
+    // For syncing historical Skool messages, we use the inbound endpoint with
+    // a clear visual prefix so it's obvious this is Jimmy's reply synced from Skool
+    const formattedMessage = `→ Jimmy (via Skool):\n${messageText}`
+
+    const body = {
+      type: 'Custom',
+      contactId,
+      locationId,
+      message: formattedMessage,
+      conversationProviderId: this.conversationProviderId,
+      altId: skoolMessageId,
+      externalId: `outbound-${skoolUserId}`, // Different externalId to distinguish
+    }
+
+    const response = await this.request<{
+      conversationId?: string
+      messageId?: string
+      message?: { id: string }
+      id?: string
+    }>('/conversations/messages/inbound', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+
+    const messageId = response.messageId || response.message?.id || response.id
+    if (!messageId) {
+      console.error('[GHL Provider] Unexpected response:', response)
+      throw new Error('GHL push outbound message response missing messageId')
+    }
+
+    console.log('[GHL Provider] Outbound (synced) message pushed successfully:', messageId)
+    return messageId
+  }
+
+  /**
    * Get or create a conversation for a contact on the Skool channel
    *
    * @param locationId - GHL location ID

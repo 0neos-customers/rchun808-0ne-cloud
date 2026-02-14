@@ -282,16 +282,11 @@ async function processConversation(
       continue
     }
 
-    // Skip outbound messages (we sent them)
-    if (message.isOutbound || message.senderId === currentUserId) {
-      console.log(`[Sync Engine] Skipping outbound: ${message.id} (senderId=${message.senderId}, isOutbound=${message.isOutbound})`)
-      skipReasons.push(`msg:${message.id}:outbound`)
-      result.skipped++
-      continue
-    }
+    // Determine if message is outbound (from Jimmy) or inbound (from contact)
+    const isOutbound = message.isOutbound || message.senderId === currentUserId
 
     try {
-      // Lazily find/create GHL contact on first inbound message
+      // Lazily find/create GHL contact on first message
       if (!ghlContactId) {
         const contactResult = await findOrCreateGhlContact(
           userId,
@@ -338,14 +333,30 @@ async function processConversation(
         continue
       }
 
-      // Push message to GHL
-      const ghlMessageId = await ghlClient.pushInboundMessage(
-        ghlLocationId,
-        ghlContactId,
-        conversation.participant.id,
-        messageContent,
-        message.id // Use Skool message ID as altId for deduplication
-      )
+      // Push message to GHL using appropriate endpoint based on direction
+      let ghlMessageId: string
+
+      if (isOutbound) {
+        // Outbound message (from Jimmy to contact) - appears on RIGHT side in GHL
+        console.log(`[Sync Engine] Syncing outbound: ${message.id} (from Jimmy)`)
+        ghlMessageId = await ghlClient.pushOutboundMessage(
+          ghlLocationId,
+          ghlContactId,
+          conversation.participant.id,
+          messageContent,
+          message.id
+        )
+      } else {
+        // Inbound message (from contact to Jimmy) - appears on LEFT side in GHL
+        console.log(`[Sync Engine] Syncing inbound: ${message.id} (from contact)`)
+        ghlMessageId = await ghlClient.pushInboundMessage(
+          ghlLocationId,
+          ghlContactId,
+          conversation.participant.id,
+          messageContent,
+          message.id
+        )
+      }
 
       // Record in dm_messages table
       const messageRow: Omit<DmMessageRow, 'id'> = {
@@ -354,7 +365,7 @@ async function processConversation(
         skool_message_id: message.id,
         ghl_message_id: ghlMessageId,
         skool_user_id: message.senderId,
-        direction: 'inbound',
+        direction: isOutbound ? 'outbound' : 'inbound',
         message_text: messageContent,
         status: 'synced',
         created_at: message.sentAt.toISOString(),
@@ -370,8 +381,8 @@ async function processConversation(
       }
 
       result.synced++
-      skipReasons.push(`msg:${message.id}:SYNCED`)
-      console.log(`[Sync Engine] Synced message ${message.id} -> ${ghlMessageId}`)
+      skipReasons.push(`msg:${message.id}:SYNCED_${isOutbound ? 'OUTBOUND' : 'INBOUND'}`)
+      console.log(`[Sync Engine] Synced ${isOutbound ? 'outbound' : 'inbound'} message ${message.id} -> ${ghlMessageId}`)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       console.error(`[Sync Engine] Error syncing message ${message.id}:`, errorMessage)
