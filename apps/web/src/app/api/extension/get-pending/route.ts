@@ -140,6 +140,15 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerClient()
 
+    // Debug: First check how many pending outbound messages exist at all
+    const { count: totalPending } = await supabase
+      .from('dm_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('direction', 'outbound')
+      .eq('status', 'pending')
+
+    console.log(`[Extension API] Total pending outbound messages in DB: ${totalPending}`)
+
     // Query for pending outbound messages
     // These are messages that:
     // 1. Belong to this staff member (user_id = staffSkoolId OR staff_skool_id = staffSkoolId)
