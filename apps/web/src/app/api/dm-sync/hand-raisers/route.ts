@@ -9,7 +9,7 @@ interface HandRaiserCampaignWithStats {
   post_url: string
   skool_post_id: string | null
   keyword_filter: string | null
-  dm_template: string
+  dm_template: string | null  // Now optional - if null, only tags GHL (no DM sent)
   ghl_tag: string | null
   is_active: boolean
   created_at: string
@@ -106,9 +106,9 @@ export async function POST(request: NextRequest) {
     if (!body.post_url) {
       return NextResponse.json({ error: 'Missing required field: post_url' }, { status: 400 })
     }
-    if (!body.dm_template) {
-      return NextResponse.json({ error: 'Missing required field: dm_template' }, { status: 400 })
-    }
+    // dm_template is now OPTIONAL:
+    // - With template: Tags GHL + queues DM for extension to send
+    // - Without template: Tags GHL only (use GHL workflows for messaging)
 
     const { data, error } = await supabase
       .from('dm_hand_raiser_campaigns')
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
         post_url: body.post_url,
         skool_post_id: body.skool_post_id || null,
         keyword_filter: body.keyword_filter || null,
-        dm_template: body.dm_template,
+        dm_template: body.dm_template || null,  // Optional - can be null
         ghl_tag: body.ghl_tag || null,
         is_active: body.is_active ?? true,
       })

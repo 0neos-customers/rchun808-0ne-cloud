@@ -31,7 +31,7 @@ export default function HandRaisersPage() {
     setSelectedCampaign({
       id: campaign.id,
       post_url: campaign.post_url,
-      dm_template: campaign.dm_template,
+      dm_template: campaign.dm_template || '',
       keyword_filter: campaign.keyword_filter || '',
       ghl_tag: campaign.ghl_tag || '',
       is_active: campaign.is_active,

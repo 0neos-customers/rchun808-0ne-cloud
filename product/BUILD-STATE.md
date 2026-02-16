@@ -7,8 +7,8 @@
 
 ## Quick Resume
 
-**Last Updated:** 2026-02-13
-**Current Focus:** Hand-Raiser Campaign UI
+**Last Updated:** 2026-02-16
+**Current Focus:** Hand-Raiser Extension Routing (Run migration, then test)
 
 ---
 
@@ -16,9 +16,11 @@
 
 | Feature | Status | BUILD-STATE Location |
 |---------|--------|---------------------|
-| Hand-Raiser UI | 🔄 Ready | `sections/hand-raiser-ui/BUILD-STATE.md` |
+| Hand-Raiser Extension Routing | 🔄 Deploy | `sections/hand-raiser-extension-routing/BUILD-STATE.md` |
+| Skool Chrome Extension | 🔄 Planning | `sections/skool-extension/BUILD-STATE.md` |
+| Hand-Raiser UI | ✅ Complete | `sections/hand-raiser-ui/BUILD-STATE.md` |
 | Cron Fix + Sync Dashboard | ✅ Complete | `sections/sync-dashboard/BUILD-STATE.md` |
-| Skool-GHL DM Sync | ✅ Complete | `sections/skool-sync/BUILD-STATE.md` |
+| Skool-GHL DM Sync | ⚠️ Limited | `sections/skool-sync/BUILD-STATE.md` |
 | Skool Scheduler | ✅ Complete | `sections/skool-scheduler/BUILD-STATE.md` |
 | GHL Media Manager | ✅ Complete | `sections/media/BUILD-STATE.md` |
 
@@ -32,7 +34,25 @@
 
 ## Next Actions
 
-### Hand-Raiser Campaign UI
+### Skool Chrome Extension (PRIORITY)
+**Chrome Extension for cookie management and full DM history sync**
+
+**Why needed:**
+- Skool DM API only returns ~1 message per conversation (discovered 2026-02-14)
+- Cannot backfill full message history via server-side API
+- Cookies expire frequently (AWS session cookies)
+
+**Features to plan:**
+1. Cookie extraction and auto-refresh to 0ne-app
+2. DOM scraping for full DM conversation history
+3. WebSocket interception for real-time message capture
+4. Push messages to 0ne-app sync API
+
+**To start:** Create `sections/skool-extension/BUILD-STATE.md` with planning doc
+
+---
+
+### Hand-Raiser Campaign UI (Queued)
 **Build UI to manage Hand-Raiser campaigns (auto-DM Skool commenters)**
 
 **To deploy:** Read `sections/hand-raiser-ui/BUILD-STATE.md` and deploy 4 phases using multi-agent workflow:

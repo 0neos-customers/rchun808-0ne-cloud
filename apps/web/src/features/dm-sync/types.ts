@@ -95,6 +95,8 @@ export interface DmMessageRow {
   staff_skool_id?: string | null
   staff_display_name?: string | null
   ghl_user_id?: string | null
+  // Hand-raiser extension routing
+  source?: 'ghl' | 'hand-raiser' | 'manual'
 }
 
 /**
@@ -122,7 +124,7 @@ export interface HandRaiserCampaignRow {
   post_url: string
   skool_post_id: string | null
   keyword_filter: string | null
-  dm_template: string
+  dm_template: string | null  // Now optional - if null, only tags GHL (no DM sent)
   ghl_tag: string | null
   is_active: boolean
   created_at: string

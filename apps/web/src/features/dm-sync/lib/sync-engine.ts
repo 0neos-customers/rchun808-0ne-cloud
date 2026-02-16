@@ -517,12 +517,14 @@ export async function sendPendingMessages(
     const skoolClient = createSkoolDmClient(syncConfig.skool_community_slug)
 
     // Get pending outbound messages
+    // Exclude hand-raiser messages - those are sent via extension, not cloud
     const { data: pendingMessages, error: queryError } = await supabase
       .from('dm_messages')
       .select('*')
       .eq('user_id', userId)
       .eq('direction', 'outbound')
       .eq('status', 'pending')
+      .neq('source', 'hand-raiser') // Skip hand-raisers, extension handles these
       .order('created_at', { ascending: true })
       .limit(50) // Process up to 50 messages per run
 
@@ -1132,38 +1134,54 @@ async function processHandRaiserCampaign(
         await tagGhlContact(contactResult.ghlContactId, campaign.ghl_tag)
       }
 
-      // Prepare DM message from template
-      const dmMessage = interpolateTemplate(campaign.dm_template, {
-        name: comment.displayName || comment.username,
-        username: comment.username,
-      })
+      // Only queue DM if dm_template has content
+      // If no template, this is "GHL-only mode" - just tag, no DM
+      if (campaign.dm_template?.trim()) {
+        // Prepare DM message from template
+        const dmMessage = interpolateTemplate(campaign.dm_template, {
+          name: comment.displayName || comment.username,
+          username: comment.username,
+        })
 
-      // Get or create conversation with the user
-      const conversation = await skoolClient.getOrCreateConversation(comment.userId)
+        // Get or create conversation with the user
+        const conversation = await skoolClient.getOrCreateConversation(comment.userId)
 
-      // Queue DM in dm_messages table with status 'pending'
-      const messageRow: Omit<DmMessageRow, 'id'> = {
-        user_id: userId,
-        skool_conversation_id: conversation.channelId,
-        skool_message_id: `hr-${campaign.id}-${comment.userId}-${Date.now()}`, // Synthetic ID for hand-raiser
-        ghl_message_id: null,
-        skool_user_id: comment.userId,
-        direction: 'outbound',
-        message_text: dmMessage,
-        status: 'pending',
-        created_at: new Date().toISOString(),
-        synced_at: null,
+        // Queue DM in dm_messages table with status 'pending'
+        // source='hand-raiser' marks this for extension pickup (not cloud cron)
+        const messageRow: Omit<DmMessageRow, 'id'> = {
+          user_id: userId,
+          skool_conversation_id: conversation.channelId,
+          skool_message_id: `hr-${campaign.id}-${comment.userId}-${Date.now()}`, // Synthetic ID for hand-raiser
+          ghl_message_id: null,
+          skool_user_id: comment.userId,
+          direction: 'outbound',
+          message_text: dmMessage,
+          status: 'pending',
+          source: 'hand-raiser',
+          created_at: new Date().toISOString(),
+          synced_at: null,
+        }
+
+        const { error: insertError } = await supabase
+          .from('dm_messages')
+          .insert(messageRow)
+
+        if (insertError) {
+          throw new Error(`Failed to queue DM: ${insertError.message}`)
+        }
+
+        result.dmsSent++
+        console.log(
+          `[Sync Engine] Queued hand-raiser DM for ${comment.username} (${comment.userId})`
+        )
+      } else {
+        // GHL-only mode: no DM, just tagging
+        console.log(
+          `[Sync Engine] GHL-only mode: Tagged ${comment.username} (${comment.userId}), no DM queued`
+        )
       }
 
-      const { error: insertError } = await supabase
-        .from('dm_messages')
-        .insert(messageRow)
-
-      if (insertError) {
-        throw new Error(`Failed to queue DM: ${insertError.message}`)
-      }
-
-      // Record in dm_hand_raiser_sent to prevent duplicates
+      // Record in dm_hand_raiser_sent to prevent duplicate processing
       const { error: sentError } = await supabase
         .from('dm_hand_raiser_sent')
         .insert({
@@ -1172,16 +1190,11 @@ async function processHandRaiserCampaign(
         })
 
       if (sentError) {
-        // Log but don't fail - the DM is already queued
+        // Log but don't fail - the contact is already processed
         console.error(
           `[Sync Engine] Failed to record sent status: ${sentError.message}`
         )
       }
-
-      result.dmsSent++
-      console.log(
-        `[Sync Engine] Queued hand-raiser DM for ${comment.username} (${comment.userId})`
-      )
 
       // Rate limiting
       await delay(REQUEST_DELAY_MS)

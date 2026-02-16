@@ -131,10 +131,7 @@ export function HandRaiserDialog({
       return
     }
 
-    if (!formData.dm_template.trim()) {
-      setError('DM template is required')
-      return
-    }
+    // dm_template is now optional - campaigns can work in GHL-only mode
 
     setError(null)
 
@@ -206,7 +203,7 @@ export function HandRaiserDialog({
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
               <label htmlFor="dm-template" className="text-sm font-medium">
-                DM Template <span className="text-red-500">*</span>
+                DM Template
               </label>
               {hasTemplate && (
                 <button
@@ -227,10 +224,18 @@ export function HandRaiserDialog({
               rows={4}
               className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-none"
             />
-            <p className="text-xs text-muted-foreground">
-              Available variables: <code className="bg-muted px-1 rounded">{'{{name}}'}</code>{' '}
-              <code className="bg-muted px-1 rounded">{'{{username}}'}</code>
-            </p>
+            {hasTemplate ? (
+              <p className="text-xs text-muted-foreground">
+                <span className="text-green-600 font-medium">DM Mode:</span> Extension will send Skool DM + tag GHL.{' '}
+                Variables: <code className="bg-muted px-1 rounded">{'{{name}}'}</code>{' '}
+                <code className="bg-muted px-1 rounded">{'{{username}}'}</code>
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                <span className="text-blue-600 font-medium">GHL-Only Mode:</span> Leave blank to only tag contacts in GHL.
+                Use GHL workflows for messaging.
+              </p>
+            )}
 
             {/* Template Preview */}
             {showPreview && hasTemplate && (
@@ -314,7 +319,7 @@ export function HandRaiserDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isSaving || !formData.post_url.trim() || !formData.dm_template.trim()}
+            disabled={isSaving || !formData.post_url.trim()}
           >
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isEditMode ? 'Save Changes' : 'Create Campaign'}

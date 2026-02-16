@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
     // 1. Belong to this staff member (user_id = staffSkoolId OR staff_skool_id = staffSkoolId)
     // 2. Are outbound (direction = 'outbound')
     // 3. Are pending (status = 'pending')
-    // 4. Have a GHL message ID (came from GHL, need to go to Skool)
+    // 4. Have a GHL message ID (came from GHL) OR source='hand-raiser' (from hand-raiser campaigns)
     //
     // Phase 5: Also filter by staff_skool_id for multi-staff routing
     // Messages can be routed to specific staff via staff_skool_id field
@@ -132,7 +132,8 @@ export async function GET(request: NextRequest) {
       .or(`user_id.eq.${staffSkoolId},staff_skool_id.eq.${staffSkoolId}`)
       .eq('direction', 'outbound')
       .eq('status', 'pending')
-      .not('ghl_message_id', 'is', null)
+      // Pick up GHL messages (have ghl_message_id) OR hand-raiser messages (source='hand-raiser')
+      .or('ghl_message_id.not.is.null,source.eq.hand-raiser')
       .order('created_at', { ascending: true })
       .limit(limit)
 

@@ -10,7 +10,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
  */
 export interface CreateHandRaiserInput {
   post_url: string
-  dm_template: string
+  dm_template?: string | null  // Optional - if null, GHL-only mode (no DM sent)
   keyword_filter?: string | null
   ghl_tag?: string | null
   is_active?: boolean
