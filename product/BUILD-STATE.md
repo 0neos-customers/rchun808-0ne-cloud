@@ -8,7 +8,7 @@
 ## Quick Resume
 
 **Last Updated:** 2026-02-16
-**Current Focus:** Hand-Raiser Extension Routing (Run migration, then test)
+**Current Focus:** Skool Inbox complete - Test at /skool-sync/inbox
 
 ---
 
@@ -16,6 +16,7 @@
 
 | Feature | Status | BUILD-STATE Location |
 |---------|--------|---------------------|
+| Skool Inbox | ✅ Complete | `sections/skool-inbox/BUILD-STATE.md` |
 | Hand-Raiser Extension Routing | 🔄 Deploy | `sections/hand-raiser-extension-routing/BUILD-STATE.md` |
 | Skool Chrome Extension | 🔄 Planning | `sections/skool-extension/BUILD-STATE.md` |
 | Hand-Raiser UI | ✅ Complete | `sections/hand-raiser-ui/BUILD-STATE.md` |
