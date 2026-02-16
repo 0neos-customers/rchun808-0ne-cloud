@@ -143,7 +143,7 @@ export async function POST(request: Request) {
 
     // 4b. Validate conversationProviderId matches our registered provider (extra security)
     const incomingProviderId = rawPayload.conversationProviderId as string | undefined
-    const expectedProviderId = process.env.GHL_CONVERSATION_PROVIDER_ID
+    const expectedProviderId = process.env.GHL_CONVERSATION_PROVIDER_ID?.trim()  // Trim whitespace/newlines
 
     if (expectedProviderId && incomingProviderId && incomingProviderId !== expectedProviderId) {
       console.error('[GHL Webhook] Provider ID mismatch:', {
