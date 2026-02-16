@@ -8,9 +8,14 @@
  * Flow:
  * 1. User replies in GHL inbox to Skool thread
  * 2. GHL sends webhook to this endpoint
- * 3. We verify signature and parse payload
+ * 3. Validate locationId and conversationProviderId
  * 4. Look up Skool user from dm_contact_mappings
- * 5. Queue message for sending via Skool API
+ * 5. Queue message for sending via Skool API (extension picks up)
+ *
+ * Security:
+ * - GHL Conversation Provider webhooks do NOT include signatures (by design)
+ * - Security relies on: URL secrecy, locationId validation, providerId match
+ * - Reference: https://marketplace.gohighlevel.com/docs/webhook/ProviderOutboundMessage/
  *
  * POST /api/webhooks/ghl/outbound-message
  */
@@ -18,7 +23,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@0ne/db/server'
 import {
-  verifyGhlWebhookSignature,
   type GhlOutboundMessagePayload,
 } from '@/features/dm-sync/lib/ghl-conversation'
 import {
@@ -74,31 +78,22 @@ export async function POST(request: Request) {
     console.log('[GHL Webhook] Raw body length:', rawBody.length)
     console.log('[GHL Webhook] Raw body preview:', rawBody.slice(0, 200))
 
-    // 2. Verify webhook signature (if both signature and secret are present)
-    const signature = request.headers.get('x-ghl-signature') || ''
-    const webhookSecret = process.env.GHL_MARKETPLACE_WEBHOOK_SECRET
+    // 2. Webhook Security Notes:
+    // - Standard GHL webhooks use x-wh-signature header with RSA-SHA256 + public key
+    // - Conversation Provider webhooks do NOT include signatures (confirmed via GHL docs)
+    // - Security relies on: (1) URL secrecy, (2) locationId validation, (3) conversationProviderId match
+    // Reference: https://marketplace.gohighlevel.com/docs/webhook/ProviderOutboundMessage/index.html
 
-    // Log for debugging
-    console.log('[GHL Webhook] Signature check:', {
+    const signature = request.headers.get('x-wh-signature') || ''
+
+    console.log('[GHL Webhook] Security check:', {
       hasSignature: !!signature,
-      hasSecret: !!webhookSecret,
       signatureLength: signature?.length || 0,
+      note: 'Conversation Provider webhooks do not include signatures by design',
     })
 
-    // Only verify if BOTH signature and secret are present
-    // GHL Conversation Provider webhooks may not include signatures
-    if (signature && webhookSecret) {
-      if (!verifyGhlWebhookSignature(rawBody, signature)) {
-        console.error('[GHL Webhook] Invalid signature')
-        return NextResponse.json(
-          { error: 'Invalid signature' },
-          { status: 401 }
-        )
-      }
-      console.log('[GHL Webhook] Signature verified successfully')
-    } else {
-      console.log('[GHL Webhook] Signature verification skipped (no signature from GHL)')
-    }
+    // If GHL ever starts sending signatures for CP webhooks, we should verify them
+    // Currently (as of 2026), they don't, so we proceed without signature verification
 
     // 3. Parse payload
     let payload: GhlOutboundMessagePayload
@@ -146,12 +141,28 @@ export async function POST(request: Request) {
     // Use messageText instead of body from here on
     const body = messageText
 
+    // 4b. Validate conversationProviderId matches our registered provider (extra security)
+    const incomingProviderId = rawPayload.conversationProviderId as string | undefined
+    const expectedProviderId = process.env.GHL_CONVERSATION_PROVIDER_ID
+
+    if (expectedProviderId && incomingProviderId && incomingProviderId !== expectedProviderId) {
+      console.error('[GHL Webhook] Provider ID mismatch:', {
+        incoming: incomingProviderId,
+        expected: expectedProviderId,
+      })
+      return NextResponse.json(
+        { error: 'Invalid conversation provider' },
+        { status: 403 }
+      )
+    }
+
     console.log('[GHL Webhook] Processing outbound message:', {
       contactId,
       conversationId,
       locationId,
       messageLength: body.length,
       messageId,
+      conversationProviderId: incomingProviderId,
       replyToAltId: payload.replyToAltId,
     })
 
