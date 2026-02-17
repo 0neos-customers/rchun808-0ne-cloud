@@ -1,23 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth, clerkClient } from '@clerk/nextjs/server'
 import { createServerClient } from '@0ne/db/server'
+import { corsHeaders, validateExtensionAuth } from '@/lib/extension-auth'
+
+export { OPTIONS } from '@/lib/extension-auth'
 
 export const dynamic = 'force-dynamic'
-
-// CORS headers for Chrome extension
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Clerk-User-Id',
-}
-
-/**
- * OPTIONS /api/extension/push-analytics
- * Handle CORS preflight
- */
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 200, headers: corsHeaders })
-}
 
 /**
  * Chrome Extension Push Analytics API
@@ -50,60 +37,6 @@ interface PushAnalyticsResponse {
   updated: number  // Metrics updated (on conflict)
   skipped: number  // Metrics skipped (invalid data)
   errors?: string[]
-}
-
-// =============================================
-// Auth Helper (Supports both Clerk and API key)
-// =============================================
-
-interface AuthResult {
-  valid: boolean
-  authType: 'clerk' | 'apiKey' | null
-  userId?: string
-  skoolUserId?: string
-  error?: string
-}
-
-async function validateExtensionAuth(request: NextRequest): Promise<AuthResult> {
-  const authHeader = request.headers.get('authorization')
-
-  if (!authHeader) {
-    return { valid: false, authType: null, error: 'Missing Authorization header' }
-  }
-
-  // Check for Clerk auth first (Clerk <token>)
-  if (authHeader.startsWith('Clerk ')) {
-    try {
-      const { userId } = await auth()
-      if (userId) {
-        const client = await clerkClient()
-        const user = await client.users.getUser(userId)
-        const skoolUserId = (user.publicMetadata?.skoolUserId as string) || undefined
-
-        return { valid: true, authType: 'clerk', userId, skoolUserId }
-      }
-      return { valid: false, authType: 'clerk', error: 'Invalid or expired Clerk session' }
-    } catch {
-      return { valid: false, authType: 'clerk', error: 'Failed to validate Clerk session' }
-    }
-  }
-
-  // Check for Bearer token (API key)
-  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i)
-  if (bearerMatch) {
-    const expectedKey = process.env.EXTENSION_API_KEY
-    if (!expectedKey) {
-      console.error('[Extension API] EXTENSION_API_KEY environment variable not set')
-      return { valid: false, authType: 'apiKey', error: 'Server configuration error' }
-    }
-
-    if (bearerMatch[1] === expectedKey) {
-      return { valid: true, authType: 'apiKey' }
-    }
-    return { valid: false, authType: 'apiKey', error: 'Invalid API key' }
-  }
-
-  return { valid: false, authType: null, error: 'Invalid Authorization header format' }
 }
 
 // =============================================
@@ -180,7 +113,7 @@ export async function POST(request: NextRequest) {
         }
 
         const analyticsRow = {
-          user_id: staffSkoolId,
+          staff_skool_id: staffSkoolId,
           group_id: metric.groupId,
           post_id: metric.postId || null,
           metric_type: metric.metricType,
@@ -205,7 +138,7 @@ export async function POST(request: NextRequest) {
                 raw_data: metric.rawData || null,
                 recorded_at: new Date().toISOString(),
               })
-              .eq('user_id', staffSkoolId)
+              .eq('staff_skool_id', staffSkoolId)
               .eq('group_id', metric.groupId)
               .eq('metric_type', metric.metricType)
               .eq('metric_date', metricDate)
@@ -295,6 +228,87 @@ export async function POST(request: NextRequest) {
 
       if (membersDaily > 0) {
         console.log(`[Extension API] Synced ${membersDaily} days to skool_members_daily`)
+      }
+    }
+
+    // Sync monthly member breakdown to skool_members_monthly table
+    const monthlyNewMetrics = metrics.filter(
+      (m) => m.metricType === 'monthly_new_members'
+    )
+    const monthlyExistingMetrics = metrics.filter(
+      (m) => m.metricType === 'monthly_existing_members'
+    )
+    const monthlyChurnedMetrics = metrics.filter(
+      (m) => m.metricType === 'monthly_churned_members'
+    )
+    const monthlyTotalMetrics = metrics.filter(
+      (m) => m.metricType === 'monthly_total_members'
+    )
+
+    // Only process if we have at least total members data
+    if (monthlyTotalMetrics.length > 0) {
+      // Group all monthly metrics by date
+      const monthlyByDate = new Map<string, { new_members: number; existing_members: number; churned_members: number; total_members: number; groupId: string }>()
+
+      for (const m of monthlyTotalMetrics) {
+        const dateKey = m.metricDate?.match(/^\d{4}-\d{2}-\d{2}/)?.[0]
+        if (!dateKey) continue
+        monthlyByDate.set(dateKey, {
+          new_members: 0,
+          existing_members: 0,
+          churned_members: 0,
+          total_members: m.metricValue,
+          groupId: m.groupId,
+        })
+      }
+
+      for (const m of monthlyNewMetrics) {
+        const dateKey = m.metricDate?.match(/^\d{4}-\d{2}-\d{2}/)?.[0]
+        if (!dateKey) continue
+        const entry = monthlyByDate.get(dateKey)
+        if (entry) entry.new_members = m.metricValue
+      }
+
+      for (const m of monthlyExistingMetrics) {
+        const dateKey = m.metricDate?.match(/^\d{4}-\d{2}-\d{2}/)?.[0]
+        if (!dateKey) continue
+        const entry = monthlyByDate.get(dateKey)
+        if (entry) entry.existing_members = m.metricValue
+      }
+
+      for (const m of monthlyChurnedMetrics) {
+        const dateKey = m.metricDate?.match(/^\d{4}-\d{2}-\d{2}/)?.[0]
+        if (!dateKey) continue
+        const entry = monthlyByDate.get(dateKey)
+        if (entry) entry.churned_members = m.metricValue
+      }
+
+      let monthlyUpserted = 0
+      for (const [dateKey, entry] of monthlyByDate) {
+        const { error: monthlyError } = await supabase
+          .from('skool_members_monthly')
+          .upsert({
+            group_slug: entry.groupId,
+            month: dateKey,
+            new_members: entry.new_members,
+            existing_members: entry.existing_members,
+            churned_members: entry.churned_members,
+            total_members: entry.total_members,
+            source: 'extension',
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'group_slug,month',
+          })
+
+        if (monthlyError) {
+          console.error(`[Extension API] Error upserting members_monthly for ${dateKey}:`, monthlyError)
+        } else {
+          monthlyUpserted++
+        }
+      }
+
+      if (monthlyUpserted > 0) {
+        console.log(`[Extension API] Synced ${monthlyUpserted} months to skool_members_monthly`)
       }
     }
 

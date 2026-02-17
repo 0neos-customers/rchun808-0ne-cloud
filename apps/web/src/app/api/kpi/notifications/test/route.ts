@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     const { data: prefs } = await supabase
       .from('notification_preferences')
       .select('delivery_email')
-      .eq('user_id', userId)
+      .eq('clerk_user_id', userId)
       .single()
 
     // If no delivery email in preferences, try to get from Clerk
@@ -51,11 +51,11 @@ export async function POST(request: Request) {
           .from('notification_preferences')
           .upsert(
             {
-              user_id: userId,
+              clerk_user_id: userId,
               delivery_email: primaryEmail,
               updated_at: new Date().toISOString(),
             },
-            { onConflict: 'user_id' }
+            { onConflict: 'clerk_user_id' }
           )
       }
     }

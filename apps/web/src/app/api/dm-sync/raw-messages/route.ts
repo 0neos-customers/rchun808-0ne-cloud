@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@0ne/db/server'
+import { sanitizeForPostgrestFilter } from '@/lib/postgrest-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,7 +64,8 @@ export async function GET(request: NextRequest) {
 
     // Apply filters
     if (search) {
-      query = query.or(`message_text.ilike.%${search}%,sender_name.ilike.%${search}%`)
+      const safeSearch = sanitizeForPostgrestFilter(search)
+      query = query.or(`message_text.ilike.%${safeSearch}%,sender_name.ilike.%${safeSearch}%`)
     }
 
     if (direction && direction !== 'all') {
@@ -106,7 +108,7 @@ export async function GET(request: NextRequest) {
     if (messages && messages.length > 0) {
       // Get unique skool_user_ids and user_ids
       const skoolUserIds = [...new Set(messages.map((m) => m.skool_user_id))]
-      const userIds = [...new Set(messages.map((m) => m.user_id))]
+      const userIds = [...new Set(messages.map((m) => m.clerk_user_id))]
 
       // Get contact mappings for these users
       const { data: mappings } = await supabase
@@ -117,21 +119,21 @@ export async function GET(request: NextRequest) {
       // Get sync configs for location and community slug
       const { data: configs } = await supabase
         .from('dm_sync_config')
-        .select('user_id, ghl_location_id, skool_community_slug')
-        .in('user_id', userIds)
+        .select('clerk_user_id, ghl_location_id, skool_community_slug')
+        .in('clerk_user_id', userIds)
 
       // Build lookup maps
       const mappingMap = new Map(
         mappings?.map((m) => [m.skool_user_id, m]) || []
       )
       const configMap = new Map(
-        configs?.map((c) => [c.user_id, c]) || []
+        configs?.map((c) => [c.clerk_user_id, c]) || []
       )
 
       // Enrich messages
       const enrichedMessages: RawMessage[] = messages.map((msg) => {
         const mapping = mappingMap.get(msg.skool_user_id)
-        const config = configMap.get(msg.user_id)
+        const config = configMap.get(msg.clerk_user_id)
 
         return {
           id: msg.id,

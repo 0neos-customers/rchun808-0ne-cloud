@@ -51,7 +51,7 @@ async function getUserPreferences(
   const { data, error } = await supabase
     .from('notification_preferences')
     .select('*')
-    .eq('user_id', userId)
+    .eq('clerk_user_id', userId)
     .single()
 
   if (error) {
@@ -245,7 +245,7 @@ export async function sendScheduledSnapshots(
   const hourStr = currentHour.toString().padStart(2, '0')
   const { data: eligibleUsers, error } = await supabase
     .from('notification_preferences')
-    .select('user_id')
+    .select('clerk_user_id')
     .eq('daily_snapshot_enabled', true)
     .like('delivery_time', `${hourStr}:%`)
 
@@ -265,7 +265,7 @@ export async function sendScheduledSnapshots(
 
   // Send to each user
   const results = await Promise.all(
-    eligibleUsers.map((user) => sendDailySnapshot(user.user_id))
+    eligibleUsers.map((user) => sendDailySnapshot(user.clerk_user_id))
   )
 
   return results

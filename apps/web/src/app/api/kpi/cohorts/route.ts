@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createServerClient } from '@0ne/db/server'
 import { COHORT_DAYS, type CohortDay } from '@/features/kpi/lib/config'
+import { sanitizeForPostgrestFilter } from '@/lib/postgrest-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,15 +67,16 @@ export async function GET(request: Request) {
         .from('skool_members')
         .select('skool_user_id')
 
-      if (hasUnknown && otherSources.length > 0) {
+      const safeSources = otherSources.map(sanitizeForPostgrestFilter)
+      if (hasUnknown && safeSources.length > 0) {
         // Both unknown (NULL) and specific sources
-        skoolQuery = skoolQuery.or(`attribution_source.in.(${otherSources.join(',')}),attribution_source.is.null`)
+        skoolQuery = skoolQuery.or(`attribution_source.in.(${safeSources.join(',')}),attribution_source.is.null`)
       } else if (hasUnknown) {
         // Only unknown (NULL)
         skoolQuery = skoolQuery.is('attribution_source', null)
       } else {
         // Only specific sources
-        skoolQuery = skoolQuery.in('attribution_source', otherSources)
+        skoolQuery = skoolQuery.in('attribution_source', safeSources)
       }
 
       const { data: skoolMembers } = await skoolQuery

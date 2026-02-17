@@ -53,7 +53,7 @@ export async function getStoredTokens(
   const { data, error } = await supabase
     .from('dm_sync_config')
     .select('ghl_access_token, ghl_refresh_token, ghl_token_expires_at')
-    .eq('user_id', userId)
+    .eq('clerk_user_id', userId)
     .single()
 
   if (error || !data) {
@@ -124,7 +124,7 @@ export async function saveTokens(
       ghl_token_expires_at: expiresAt.toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq('user_id', userId)
+    .eq('clerk_user_id', userId)
 
   if (error) {
     console.error('[GHL Token Store] Failed to save tokens:', error.message)
@@ -166,7 +166,7 @@ export async function clearTokens(userId: string): Promise<void> {
       ghl_token_expires_at: null,
       updated_at: new Date().toISOString(),
     })
-    .eq('user_id', userId)
+    .eq('clerk_user_id', userId)
 
   if (error) {
     console.error('[GHL Token Store] Failed to clear tokens:', error.message)

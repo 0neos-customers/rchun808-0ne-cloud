@@ -45,7 +45,7 @@ export interface SkoolMessage {
 }
 
 // =============================================================================
-// DATABASE ROW TYPES (match 027-dm-sync.sql schema)
+// DATABASE ROW TYPES (match 027-dm-sync.sql + 035-rename-user-id-columns.sql)
 // =============================================================================
 
 /**
@@ -53,7 +53,7 @@ export interface SkoolMessage {
  */
 export interface DmSyncConfigRow {
   id: string
-  user_id: string
+  clerk_user_id: string
   skool_community_slug: string
   ghl_location_id: string
   enabled: boolean
@@ -66,7 +66,7 @@ export interface DmSyncConfigRow {
  */
 export interface ContactMappingRow {
   id: string
-  user_id: string
+  clerk_user_id: string
   skool_user_id: string
   skool_username: string | null
   skool_display_name: string | null
@@ -80,7 +80,7 @@ export interface ContactMappingRow {
  */
 export interface DmMessageRow {
   id: string
-  user_id: string
+  clerk_user_id: string
   skool_conversation_id: string
   skool_message_id: string
   ghl_message_id: string | null
@@ -104,7 +104,7 @@ export interface DmMessageRow {
  */
 export interface StaffUserRow {
   id: string
-  user_id: string
+  clerk_user_id: string
   skool_user_id: string
   skool_username: string | null
   display_name: string
@@ -120,7 +120,7 @@ export interface StaffUserRow {
  */
 export interface HandRaiserCampaignRow {
   id: string
-  user_id: string
+  clerk_user_id: string
   post_url: string
   skool_post_id: string | null
   keyword_filter: string | null

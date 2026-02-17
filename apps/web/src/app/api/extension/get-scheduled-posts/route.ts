@@ -1,22 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@0ne/db/server'
+import { corsHeaders, validateExtensionApiKey } from '@/lib/extension-auth'
+
+export { OPTIONS } from '@/lib/extension-auth'
 
 export const dynamic = 'force-dynamic'
-
-// CORS headers for Chrome extension
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-}
-
-/**
- * OPTIONS /api/extension/get-scheduled-posts
- * Handle CORS preflight
- */
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 200, headers: corsHeaders })
-}
 
 /**
  * GET /api/extension/get-scheduled-posts
@@ -52,40 +40,6 @@ interface GetScheduledPostsResponse {
   success: boolean
   posts: ScheduledPostResponse[]
   error?: string
-}
-
-// =============================================
-// Auth Helper
-// =============================================
-
-function validateExtensionApiKey(request: NextRequest): NextResponse | null {
-  const authHeader = request.headers.get('authorization')
-  const expectedKey = process.env.EXTENSION_API_KEY
-
-  if (!expectedKey) {
-    console.error('[Extension API] EXTENSION_API_KEY environment variable not set')
-    return NextResponse.json(
-      { success: false, posts: [], error: 'Server configuration error' },
-      { status: 500, headers: corsHeaders }
-    )
-  }
-
-  if (!authHeader) {
-    return NextResponse.json(
-      { success: false, posts: [], error: 'Missing Authorization header' },
-      { status: 401, headers: corsHeaders }
-    )
-  }
-
-  const match = authHeader.match(/^Bearer\s+(.+)$/i)
-  if (!match || match[1] !== expectedKey) {
-    return NextResponse.json(
-      { success: false, posts: [], error: 'Invalid API key' },
-      { status: 401, headers: corsHeaders }
-    )
-  }
-
-  return null // Valid
 }
 
 // =============================================

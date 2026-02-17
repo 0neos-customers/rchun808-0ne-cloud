@@ -1,8 +1,9 @@
 /**
  * Skool Integration Feature
  *
- * Exports for Skool sync, DM management, hand-raiser automation,
- * and automated post scheduling.
+ * Exports for Skool metrics, KPI data, and automated post scheduling.
+ * Skool API calls are handled by the Chrome extension; this module
+ * provides DB-read functions and UI components.
  */
 
 // Types (excluding SkoolCategory to avoid conflict with hooks)
@@ -33,17 +34,7 @@ export type { SkoolCategory as SkoolApiCategory } from './types'
 
 // Lib
 export * from './lib/config'
-export * from './lib/skool-client'
-export * from './lib/member-sync'
 export * from './lib/metrics-sync'
-// Export post-client functions (excluding createPost which conflicts with hooks)
-export {
-  uploadFileFromUrl,
-  getCategories,
-  discoverEndpoints,
-} from './lib/post-client'
-// Export createPost from post-client with alias
-export { createPost as createSkoolPost } from './lib/post-client'
 
 // Hooks (Post Scheduler)
 export * from './hooks'

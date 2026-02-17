@@ -13,9 +13,6 @@
         "META_ACCESS_TOKEN",
         "META_AD_ACCOUNT_ID",
         "DATABASE_URL",
-        "SKOOL_EMAIL",
-        "SKOOL_PASSWORD",
-        "SKOOL_COOKIES",
         "EXTERNAL_API_KEY"
       ]
     },

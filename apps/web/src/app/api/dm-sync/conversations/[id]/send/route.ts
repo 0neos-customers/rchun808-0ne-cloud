@@ -61,7 +61,7 @@ export async function POST(
     // Get the participant's skool_user_id from an existing message in this conversation
     const { data: existingMessage } = await supabase
       .from('dm_messages')
-      .select('skool_user_id, user_id')
+      .select('skool_user_id, clerk_user_id')
       .eq('skool_conversation_id', conversationId)
       .eq('direction', 'inbound')
       .limit(1)
@@ -82,7 +82,7 @@ export async function POST(
     const { data: newMessage, error: insertError } = await supabase
       .from('dm_messages')
       .insert({
-        user_id: existingMessage.user_id,
+        clerk_user_id: existingMessage.clerk_user_id,
         skool_conversation_id: conversationId,
         skool_message_id: syntheticMessageId,
         skool_user_id: existingMessage.skool_user_id, // The recipient

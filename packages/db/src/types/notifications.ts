@@ -48,7 +48,7 @@ export interface AlertThresholds {
  * User notification preferences (database row)
  */
 export interface NotificationPreferences {
-  user_id: string
+  clerk_user_id: string
   daily_snapshot_enabled: boolean
   delivery_time: string // TIME format: 'HH:MM:SS'
   delivery_email: string | null
@@ -89,7 +89,7 @@ export const DEFAULT_METRICS_CONFIG: MetricsConfig = {
 /**
  * Default notification preferences for new users
  */
-export const DEFAULT_NOTIFICATION_PREFERENCES: Omit<NotificationPreferences, 'user_id' | 'created_at' | 'updated_at'> = {
+export const DEFAULT_NOTIFICATION_PREFERENCES: Omit<NotificationPreferences, 'clerk_user_id' | 'created_at' | 'updated_at'> = {
   daily_snapshot_enabled: false,
   delivery_time: '08:00:00',
   delivery_email: null,

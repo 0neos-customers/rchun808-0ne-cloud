@@ -71,7 +71,7 @@ export async function findOrCreateGhlContact(
   const { data: cachedMapping } = await supabase
     .from('dm_contact_mappings')
     .select('ghl_contact_id')
-    .eq('user_id', userId)
+    .eq('clerk_user_id', userId)
     .eq('skool_user_id', skoolUserId)
     .single()
 
@@ -263,7 +263,7 @@ export async function findGhlContactsForUsers(
   const { data: cachedMappings } = await supabase
     .from('dm_contact_mappings')
     .select('skool_user_id, ghl_contact_id')
-    .eq('user_id', userId)
+    .eq('clerk_user_id', userId)
     .in('skool_user_id', skoolUserIds)
 
   // Add cached results
@@ -598,7 +598,7 @@ async function cacheMapping(
   const supabase = createServerClient()
 
   const mappingRow: Omit<ContactMappingRow, 'id' | 'created_at'> = {
-    user_id: userId,
+    clerk_user_id: userId,
     skool_user_id: skoolUserId,
     ghl_contact_id: ghlContactId,
     skool_username: skoolUsername,
@@ -616,7 +616,7 @@ async function cacheMapping(
   }
 
   const { error } = await supabase.from('dm_contact_mappings').upsert(mappingRow, {
-    onConflict: 'user_id,skool_user_id',
+    onConflict: 'clerk_user_id,skool_user_id',
     ignoreDuplicates: false,
   })
 

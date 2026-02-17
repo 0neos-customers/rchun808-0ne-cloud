@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   syncExtensionMessages,
   getEnabledSyncConfigs,
-  type InboundSyncResult,
+  type ExtensionSyncResult,
 } from '@/features/dm-sync'
 import { SyncLogger } from '@/lib/sync-log'
 
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     // Filter to specific user if requested
     const targetConfigs = specificUserId
-      ? configs.filter((c) => c.user_id === specificUserId)
+      ? configs.filter((c) => c.clerk_user_id === specificUserId)
       : configs
 
     if (targetConfigs.length === 0) {
@@ -80,13 +80,13 @@ export async function GET(request: NextRequest) {
     // Process each user's sync
     const results: Array<{
       userId: string
-      result: InboundSyncResult
+      result: ExtensionSyncResult
     }> = []
 
     // Initialize results for all users
     for (const config of targetConfigs) {
       results.push({
-        userId: config.user_id,
+        userId: config.clerk_user_id,
         result: {
           synced: 0,
           skipped: 0,
@@ -100,16 +100,16 @@ export async function GET(request: NextRequest) {
     // This doesn't call Skool API - just pushes already-captured messages to GHL
     for (const config of targetConfigs) {
       try {
-        const extResult = await syncExtensionMessages(config.user_id)
-        console.log(`[sync-skool-dms] Extension sync for ${config.user_id}: synced=${extResult.synced}, skipped=${extResult.skipped}, errors=${extResult.errors}`)
-        const userResult = results.find((r) => r.userId === config.user_id)
+        const extResult = await syncExtensionMessages(config.clerk_user_id)
+        console.log(`[sync-skool-dms] Extension sync for ${config.clerk_user_id}: synced=${extResult.synced}, skipped=${extResult.skipped}, errors=${extResult.errors}`)
+        const userResult = results.find((r) => r.userId === config.clerk_user_id)
         if (userResult) {
           userResult.result.synced += extResult.synced
           userResult.result.skipped += extResult.skipped
           userResult.result.errors += extResult.errors
         }
       } catch (error) {
-        console.error(`[sync-skool-dms] Extension sync error for ${config.user_id}:`, error)
+        console.error(`[sync-skool-dms] Extension sync error for ${config.clerk_user_id}:`, error)
       }
     }
 

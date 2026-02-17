@@ -1,17 +1,17 @@
 /**
  * POST /api/skool/oneoff-posts/post-now
  *
- * Immediately posts a one-off post to Skool, bypassing the scheduled time.
- * Updates the post status to 'published' on success.
+ * Queues a one-off post for immediate publishing by the Chrome extension.
+ * Instead of calling Skool API server-side (blocked by AWS WAF), this sets
+ * `status = 'approved'` and `scheduled_at = NOW()` so the extension's
+ * get-scheduled-posts poll (every 60s) picks it up and publishes it.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@0ne/db/server'
-import { uploadFileFromUrl, createPost } from '@/features/skool/lib/post-client'
 import type { SkoolOneOffPost } from '@0ne/db'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60 // 1 minute max
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,81 +44,34 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`[Post Now] Posting "${oneOff.title}" to ${oneOff.group_slug}`)
+    console.log(`[Post Now] Queuing "${oneOff.title}" for extension publishing`)
 
-    // Upload image if present
-    let attachmentIds: string[] = []
-    if (oneOff.image_url) {
-      console.log(`[Post Now] Uploading image: ${oneOff.image_url}`)
-      const upload = await uploadFileFromUrl(oneOff.image_url, oneOff.group_slug)
-      if ('fileId' in upload && upload.fileId) {
-        attachmentIds = [upload.fileId]
-        console.log(`[Post Now] Image uploaded: ${upload.fileId}`)
-      } else {
-        console.log(`[Post Now] Image upload failed, continuing without image`)
-      }
-    }
-
-    // Create the post on Skool
-    const postResult = await createPost({
-      groupSlug: oneOff.group_slug,
-      title: oneOff.title,
-      body: oneOff.body,
-      categoryId: oneOff.category_id || undefined,
-      attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined,
-      videoLinks: oneOff.video_url ? [oneOff.video_url] : undefined,
-    })
-
-    if (!postResult.success) {
-      console.error(`[Post Now] Failed to post:`, postResult.error)
-
-      // Update post with error
-      await supabase
-        .from('skool_oneoff_posts')
-        .update({
-          status: 'failed',
-          error_message: postResult.error,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id)
-
-      return NextResponse.json(
-        { error: postResult.error || 'Failed to post to Skool' },
-        { status: 500 }
-      )
-    }
-
-    console.log(`[Post Now] Post created successfully: ${postResult.postId}`)
-
-    // Update post status to published
+    // Queue for extension: set status to 'approved' and scheduled_at to NOW
+    // The extension polls get-scheduled-posts every 60s and will pick this up
+    const now = new Date().toISOString()
     const { error: updateError } = await supabase
       .from('skool_oneoff_posts')
       .update({
-        status: 'published',
-        published_at: new Date().toISOString(),
-        skool_post_id: postResult.postId,
-        skool_post_url: postResult.postUrl,
-        updated_at: new Date().toISOString(),
+        status: 'approved',
+        scheduled_at: now,
+        updated_at: now,
       })
       .eq('id', id)
 
     if (updateError) {
-      console.error(`[Post Now] Failed to update post status:`, updateError)
+      console.error(`[Post Now] Failed to queue post:`, updateError)
+      return NextResponse.json(
+        { error: 'Failed to queue post for publishing' },
+        { status: 500 }
+      )
     }
 
-    // Log the execution
-    await supabase.from('skool_post_execution_log').insert({
-      oneoff_post_id: id,
-      status: 'success',
-      skool_post_id: postResult.postId,
-      skool_post_url: postResult.postUrl,
-      executed_at: new Date().toISOString(),
-    })
+    console.log(`[Post Now] Post queued successfully — extension will publish within ~60s`)
 
     return NextResponse.json({
       success: true,
-      postId: postResult.postId,
-      postUrl: postResult.postUrl,
+      queued: true,
+      message: 'Post queued for extension publishing. It will be published within ~60 seconds.',
     })
   } catch (error) {
     console.error('[Post Now] Exception:', error)

@@ -31,14 +31,6 @@
     {
       "path": "/api/cron/sync-skool-dms",
       "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/send-pending-dms",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/hand-raiser-check",
-      "schedule": "*/15 * * * *"
     }
   ]
 }

@@ -1,23 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth, clerkClient } from '@clerk/nextjs/server'
 import { createServerClient } from '@0ne/db/server'
+import { corsHeaders, validateExtensionAuth } from '@/lib/extension-auth'
+
+export { OPTIONS } from '@/lib/extension-auth'
 
 export const dynamic = 'force-dynamic'
-
-// CORS headers for Chrome extension
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Clerk-User-Id',
-}
-
-/**
- * OPTIONS /api/extension/push-members
- * Handle CORS preflight
- */
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 200, headers: corsHeaders })
-}
 
 /**
  * Chrome Extension Push Members API
@@ -39,6 +26,12 @@ interface IncomingMember {
   points?: number
   joinedAt?: string | null
   lastSeenAt?: string | null
+  // Additional fields from Phase 6 full member sync
+  username?: string
+  bio?: string
+  location?: string
+  role?: string                                       // 'admin', 'moderator', 'member'
+  questionsAndAnswers?: Record<string, string>[] | null  // Survey/question answers on join
 }
 
 interface PushMembersRequest {
@@ -51,60 +44,6 @@ interface PushMembersResponse {
   success: boolean
   upserted: number
   errors?: string[]
-}
-
-// =============================================
-// Auth Helper (Supports both Clerk and API key)
-// =============================================
-
-interface AuthResult {
-  valid: boolean
-  authType: 'clerk' | 'apiKey' | null
-  userId?: string
-  skoolUserId?: string
-  error?: string
-}
-
-async function validateExtensionAuth(request: NextRequest): Promise<AuthResult> {
-  const authHeader = request.headers.get('authorization')
-
-  if (!authHeader) {
-    return { valid: false, authType: null, error: 'Missing Authorization header' }
-  }
-
-  // Check for Clerk auth first (Clerk <token>)
-  if (authHeader.startsWith('Clerk ')) {
-    try {
-      const { userId } = await auth()
-      if (userId) {
-        const client = await clerkClient()
-        const user = await client.users.getUser(userId)
-        const skoolUserId = (user.publicMetadata?.skoolUserId as string) || undefined
-
-        return { valid: true, authType: 'clerk', userId, skoolUserId }
-      }
-      return { valid: false, authType: 'clerk', error: 'Invalid or expired Clerk session' }
-    } catch {
-      return { valid: false, authType: 'clerk', error: 'Failed to validate Clerk session' }
-    }
-  }
-
-  // Check for Bearer token (API key)
-  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i)
-  if (bearerMatch) {
-    const expectedKey = process.env.EXTENSION_API_KEY
-    if (!expectedKey) {
-      console.error('[Extension API] EXTENSION_API_KEY environment variable not set')
-      return { valid: false, authType: 'apiKey', error: 'Server configuration error' }
-    }
-
-    if (bearerMatch[1] === expectedKey) {
-      return { valid: true, authType: 'apiKey' }
-    }
-    return { valid: false, authType: 'apiKey', error: 'Invalid API key' }
-  }
-
-  return { valid: false, authType: null, error: 'Invalid Authorization header format' }
 }
 
 // =============================================
@@ -148,24 +87,28 @@ export async function POST(request: NextRequest) {
     // Upsert members in batches
     for (const member of members) {
       try {
-        const memberRow = {
-          user_id: staffSkoolId,
-          group_id: groupId,
+        const memberRow: Record<string, unknown> = {
+          group_slug: groupId,
           skool_user_id: member.skoolUserId,
-          name: member.name || null,
+          display_name: member.name || null,
           email: member.email || null,
-          avatar_url: member.avatarUrl || null,
+          profile_image: member.avatarUrl || null,
           level: member.level ?? null,
           points: member.points ?? null,
-          joined_at: member.joinedAt || null,
-          last_seen_at: member.lastSeenAt || null,
-          synced_at: new Date().toISOString(),
+          member_since: member.joinedAt || null,
+          last_online: member.lastSeenAt || null,
         }
+
+        // Add additional fields if present (Phase 6)
+        if (member.username) memberRow.skool_username = member.username
+        if (member.bio) memberRow.bio = member.bio
+        if (member.location) memberRow.location = member.location
+        if (member.role) memberRow.role = member.role
 
         const { error } = await supabase
           .from('skool_members')
           .upsert(memberRow, {
-            onConflict: 'user_id,group_id,skool_user_id',
+            onConflict: 'skool_user_id',
           })
 
         if (error) {

@@ -55,16 +55,6 @@ export type {
 } from './types'
 
 // =============================================================================
-// SKOOL DM CLIENT
-// =============================================================================
-
-export {
-  SkoolDmClient,
-  createSkoolDmClient,
-  type SkoolDmClientConfig,
-} from './lib/skool-dm-client'
-
-// =============================================================================
 // CONTACT MAPPER
 // =============================================================================
 
@@ -125,19 +115,11 @@ export {
 // =============================================================================
 
 export {
-  // Standalone sync functions (Phase 5)
-  syncInboundMessages,
-  sendPendingMessages,
   getEnabledSyncConfigs,
   // Extension message sync (Phase 2 - Skool Sync)
   syncExtensionMessages,
   // Hand-raiser functions (Phase 7)
-  processHandRaisers,
   getUsersWithActiveHandRaisers,
-  // Legacy class
-  DmSyncEngine,
-  createSyncEngine,
-  createSyncEngineFromConfig,
   // Utilities
   needsSync,
   calculateSyncPriority,
@@ -145,9 +127,6 @@ export {
   // Types
   type SyncEngineConfig,
   type SyncOptions,
-  type InboundSyncResult,
-  type InboundSyncOptions,
-  type SendPendingResult,
   type ExtensionSyncResult,
 } from './lib/sync-engine'
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createServerClient } from '@0ne/db/server'
+import { sanitizeForPostgrestFilter } from '@/lib/postgrest-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -111,10 +112,12 @@ export async function POST(request: Request) {
     const supabase = createServerClient()
 
     // Check for duplicate name or slug
+    const safeName = sanitizeForPostgrestFilter(name.trim())
+    const safeSlug = sanitizeForPostgrestFilter(slug)
     const { data: existing } = await supabase
       .from('expense_categories')
       .select('id')
-      .or(`name.ilike.${name.trim()},slug.eq.${slug}`)
+      .or(`name.ilike.${safeName},slug.eq.${safeSlug}`)
       .limit(1)
 
     if (existing && existing.length > 0) {
@@ -324,10 +327,12 @@ export async function DELETE(request: Request) {
     }
 
     // Check if any expenses use this category
+    const safeCatName = sanitizeForPostgrestFilter(category.name)
+    const safeCatSlug = sanitizeForPostgrestFilter(category.slug)
     const { data: expenses } = await supabase
       .from('expenses')
       .select('id')
-      .or(`category.ilike.${category.name},category.eq.${category.slug}`)
+      .or(`category.ilike.${safeCatName},category.eq.${safeCatSlug}`)
       .limit(1)
 
     if (expenses && expenses.length > 0) {

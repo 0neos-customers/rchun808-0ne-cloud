@@ -51,7 +51,7 @@ export async function getStaffUsers(userId: string): Promise<StaffUserRow[]> {
   const { data, error } = await supabase
     .from('staff_users')
     .select('*')
-    .eq('user_id', userId)
+    .eq('clerk_user_id', userId)
     .order('display_name', { ascending: true })
 
   if (error) {
@@ -71,7 +71,7 @@ export async function getActiveStaffUsers(userId: string): Promise<StaffUserRow[
   const { data, error } = await supabase
     .from('staff_users')
     .select('*')
-    .eq('user_id', userId)
+    .eq('clerk_user_id', userId)
     .eq('is_active', true)
     .order('display_name', { ascending: true })
 
@@ -117,7 +117,7 @@ export async function getStaffByGhlUserId(
   const { data, error } = await supabase
     .from('staff_users')
     .select('*')
-    .eq('user_id', userId)
+    .eq('clerk_user_id', userId)
     .eq('ghl_user_id', ghlUserId)
     .eq('is_active', true)
     .single()
@@ -139,7 +139,7 @@ export async function getDefaultStaff(userId: string): Promise<StaffUserRow | nu
   const { data: defaultStaff, error: defaultError } = await supabase
     .from('staff_users')
     .select('*')
-    .eq('user_id', userId)
+    .eq('clerk_user_id', userId)
     .eq('is_default', true)
     .eq('is_active', true)
     .single()
@@ -153,7 +153,7 @@ export async function getDefaultStaff(userId: string): Promise<StaffUserRow | nu
     const { data: firstStaff, error: firstError } = await supabase
       .from('staff_users')
       .select('*')
-      .eq('user_id', userId)
+      .eq('clerk_user_id', userId)
       .eq('is_active', true)
       .order('created_at', { ascending: true })
       .limit(1)
@@ -180,13 +180,13 @@ export async function createStaffUser(input: StaffUserInput): Promise<StaffUserR
     await supabase
       .from('staff_users')
       .update({ is_default: false })
-      .eq('user_id', input.userId)
+      .eq('clerk_user_id', input.userId)
   }
 
   const { data, error } = await supabase
     .from('staff_users')
     .insert({
-      user_id: input.userId,
+      clerk_user_id: input.userId,
       skool_user_id: input.skoolUserId,
       skool_username: input.skoolUsername || null,
       display_name: input.displayName,
@@ -214,11 +214,11 @@ export async function updateStaffUser(
 ): Promise<StaffUserRow> {
   const supabase = createServerClient()
 
-  // If setting as default, need to get the user_id first
+  // If setting as default, need to get the clerk_user_id first
   if (updates.isDefault) {
     const { data: existing } = await supabase
       .from('staff_users')
-      .select('user_id')
+      .select('clerk_user_id')
       .eq('id', id)
       .single()
 
@@ -226,7 +226,7 @@ export async function updateStaffUser(
       await supabase
         .from('staff_users')
         .update({ is_default: false })
-        .eq('user_id', existing.user_id)
+        .eq('clerk_user_id', existing.clerk_user_id)
     }
   }
 
@@ -318,7 +318,7 @@ export async function resolveOutboundStaff(
     const { data: staffByUsername } = await supabase
       .from('staff_users')
       .select('*')
-      .eq('user_id', userId)
+      .eq('clerk_user_id', userId)
       .ilike('skool_username', override.username)
       .eq('is_active', true)
       .single()
@@ -361,7 +361,7 @@ export async function resolveOutboundStaff(
     const { data: lastMessage } = await supabase
       .from('dm_messages')
       .select('staff_skool_id, staff_display_name')
-      .eq('user_id', userId)
+      .eq('clerk_user_id', userId)
       .eq('skool_user_id', skoolContactId)
       .not('staff_skool_id', 'is', null)
       .order('created_at', { ascending: false })

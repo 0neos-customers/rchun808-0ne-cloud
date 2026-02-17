@@ -1,23 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@0ne/db/server'
-import { auth, clerkClient } from '@clerk/nextjs/server'
+import { corsHeaders, validateExtensionAuth } from '@/lib/extension-auth'
+
+export { OPTIONS } from '@/lib/extension-auth'
 
 export const dynamic = 'force-dynamic'
-
-// CORS headers for Chrome extension
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Clerk-User-Id',
-}
-
-/**
- * OPTIONS /api/extension/get-pending
- * Handle CORS preflight
- */
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 200, headers: corsHeaders })
-}
 
 // =============================================
 // Types
@@ -38,61 +25,6 @@ interface GetPendingResponse {
   success: boolean
   messages: PendingMessage[]
   count: number
-}
-
-// =============================================
-// Auth Helper (Supports both Clerk and API key)
-// =============================================
-
-interface AuthResult {
-  valid: boolean
-  authType: 'clerk' | 'apiKey' | null
-  userId?: string
-  skoolUserId?: string
-  error?: string
-}
-
-async function validateExtensionAuth(request: NextRequest): Promise<AuthResult> {
-  const authHeader = request.headers.get('authorization')
-
-  if (!authHeader) {
-    return { valid: false, authType: null, error: 'Missing Authorization header' }
-  }
-
-  // Check for Clerk auth first (Clerk <token>)
-  if (authHeader.startsWith('Clerk ')) {
-    try {
-      const { userId } = await auth()
-      if (userId) {
-        // Get the linked Skool user ID from Clerk metadata
-        const client = await clerkClient()
-        const user = await client.users.getUser(userId)
-        const skoolUserId = (user.publicMetadata?.skoolUserId as string) || undefined
-
-        return { valid: true, authType: 'clerk', userId, skoolUserId }
-      }
-      return { valid: false, authType: 'clerk', error: 'Invalid or expired Clerk session' }
-    } catch {
-      return { valid: false, authType: 'clerk', error: 'Failed to validate Clerk session' }
-    }
-  }
-
-  // Check for Bearer token (API key)
-  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i)
-  if (bearerMatch) {
-    const expectedKey = process.env.EXTENSION_API_KEY
-    if (!expectedKey) {
-      console.error('[Extension API] EXTENSION_API_KEY environment variable not set')
-      return { valid: false, authType: 'apiKey', error: 'Server configuration error' }
-    }
-
-    if (bearerMatch[1] === expectedKey) {
-      return { valid: true, authType: 'apiKey' }
-    }
-    return { valid: false, authType: 'apiKey', error: 'Invalid API key' }
-  }
-
-  return { valid: false, authType: null, error: 'Invalid Authorization header format' }
 }
 
 // =============================================
@@ -143,7 +75,7 @@ export async function GET(request: NextRequest) {
     // Debug: First check how many pending outbound messages exist at all
     const { count: totalPending, data: samplePending } = await supabase
       .from('dm_messages')
-      .select('id, user_id, staff_skool_id, source', { count: 'exact' })
+      .select('id, clerk_user_id, staff_skool_id, source', { count: 'exact' })
       .eq('direction', 'outbound')
       .eq('status', 'pending')
       .limit(3)
@@ -154,7 +86,7 @@ export async function GET(request: NextRequest) {
 
     // Query for pending outbound messages
     // These are messages that:
-    // 1. Belong to this staff member (user_id = staffSkoolId OR staff_skool_id = staffSkoolId)
+    // 1. Belong to this staff member (staff_skool_id = staffSkoolId)
     // 2. Are outbound (direction = 'outbound')
     // 3. Are pending (status = 'pending')
     // 4. Have a valid source: GHL (ghl_message_id), hand-raiser, or manual (inbox)
@@ -167,7 +99,7 @@ export async function GET(request: NextRequest) {
     const { data: pendingMessages, error } = await supabase
       .from('dm_messages')
       .select('id, skool_conversation_id, skool_user_id, message_text, created_at, staff_skool_id, staff_display_name, source')
-      .or(`user_id.eq.${staffSkoolId},staff_skool_id.eq.${staffSkoolId}`)
+      .eq('staff_skool_id', staffSkoolId)
       .eq('direction', 'outbound')
       .eq('status', 'pending')
       // Allow both manual (inbox) and ghl messages

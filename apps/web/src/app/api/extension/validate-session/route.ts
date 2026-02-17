@@ -1,24 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { createServerClient } from '@0ne/db/server'
+import { corsHeaders } from '@/lib/extension-auth'
+
+export { OPTIONS } from '@/lib/extension-auth'
 
 export const dynamic = 'force-dynamic'
-
-// CORS headers for Chrome extension
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Clerk-User-Id',
-  'Access-Control-Allow-Credentials': 'true',
-}
-
-/**
- * OPTIONS /api/extension/validate-session
- * Handle CORS preflight
- */
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 200, headers: corsHeaders })
-}
 
 /**
  * GET /api/extension/validate-session

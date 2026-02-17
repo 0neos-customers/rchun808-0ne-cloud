@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 
 interface HandRaiserCampaignWithStats {
   id: string
-  user_id: string
+  clerk_user_id: string
   post_url: string
   skool_post_id: string | null
   keyword_filter: string | null
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('dm_hand_raiser_campaigns')
       .insert({
-        user_id: userId,
+        clerk_user_id: userId,
         post_url: body.post_url,
         skool_post_id: body.skool_post_id || null,
         keyword_filter: body.keyword_filter || null,

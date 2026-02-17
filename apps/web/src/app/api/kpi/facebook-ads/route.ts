@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createServerClient } from '@0ne/db/server'
+import { sanitizeForPostgrestFilter } from '@/lib/postgrest-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -123,8 +124,8 @@ export async function GET(request: Request) {
     const adIds = adsParam ? adsParam.split(',').filter(Boolean) : []
 
     if (campaignIds.length > 0) {
-      const campaignMetaIds = campaignIds.filter((id) => /^\d+$/.test(id))
-      const campaignUuidIds = campaignIds.filter((id) => !/^\d+$/.test(id))
+      const campaignMetaIds = campaignIds.filter((id) => /^\d+$/.test(id)).map(sanitizeForPostgrestFilter)
+      const campaignUuidIds = campaignIds.filter((id) => !/^\d+$/.test(id)).map(sanitizeForPostgrestFilter)
 
       if (campaignMetaIds.length > 0 && campaignUuidIds.length > 0) {
         query.or(

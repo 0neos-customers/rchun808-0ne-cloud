@@ -9,6 +9,7 @@ import {
 } from '@/features/kpi/lib/config'
 import { getLatestMetrics } from '@/features/skool/lib/metrics-sync'
 import { getLatestRevenueSnapshot } from '@/features/skool/lib/revenue-sync'
+import { sanitizeForPostgrestFilter } from '@/lib/postgrest-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -242,6 +243,7 @@ export async function GET(request: Request) {
       // Source filtering - query skool_members directly
       const includesUnknown = sources.includes('unknown') || sources.includes('null')
       const regularSources = sources.filter(s => s !== 'unknown' && s !== 'null')
+      const safeRegularSources = regularSources.map(sanitizeForPostgrestFilter)
 
       // Get new members in period with source filter
       let newMembersQuery = supabase
@@ -253,11 +255,11 @@ export async function GET(request: Request) {
 
       // Apply source filter
       if (includesUnknown && regularSources.length > 0) {
-        newMembersQuery = newMembersQuery.or(`attribution_source.in.(${regularSources.join(',')}),attribution_source.is.null`)
+        newMembersQuery = newMembersQuery.or(`attribution_source.in.(${safeRegularSources.join(',')}),attribution_source.is.null`)
       } else if (includesUnknown) {
         newMembersQuery = newMembersQuery.is('attribution_source', null)
       } else {
-        newMembersQuery = newMembersQuery.in('attribution_source', regularSources)
+        newMembersQuery = newMembersQuery.in('attribution_source', safeRegularSources)
       }
 
       const { count: newCount } = await newMembersQuery
@@ -271,11 +273,11 @@ export async function GET(request: Request) {
         .lte('member_since', `${endDate}T23:59:59Z`)
 
       if (includesUnknown && regularSources.length > 0) {
-        totalMembersQuery = totalMembersQuery.or(`attribution_source.in.(${regularSources.join(',')}),attribution_source.is.null`)
+        totalMembersQuery = totalMembersQuery.or(`attribution_source.in.(${safeRegularSources.join(',')}),attribution_source.is.null`)
       } else if (includesUnknown) {
         totalMembersQuery = totalMembersQuery.is('attribution_source', null)
       } else {
-        totalMembersQuery = totalMembersQuery.in('attribution_source', regularSources)
+        totalMembersQuery = totalMembersQuery.in('attribution_source', safeRegularSources)
       }
 
       const { count: totalCount } = await totalMembersQuery
@@ -292,11 +294,11 @@ export async function GET(request: Request) {
         .lt('member_since', `${startDate}T00:00:00Z`)
 
       if (includesUnknown && regularSources.length > 0) {
-        prevNewMembersQuery = prevNewMembersQuery.or(`attribution_source.in.(${regularSources.join(',')}),attribution_source.is.null`)
+        prevNewMembersQuery = prevNewMembersQuery.or(`attribution_source.in.(${safeRegularSources.join(',')}),attribution_source.is.null`)
       } else if (includesUnknown) {
         prevNewMembersQuery = prevNewMembersQuery.is('attribution_source', null)
       } else {
-        prevNewMembersQuery = prevNewMembersQuery.in('attribution_source', regularSources)
+        prevNewMembersQuery = prevNewMembersQuery.in('attribution_source', safeRegularSources)
       }
 
       const { count: prevNewCount } = await prevNewMembersQuery
@@ -310,11 +312,11 @@ export async function GET(request: Request) {
         .lt('member_since', `${startDate}T00:00:00Z`)
 
       if (includesUnknown && regularSources.length > 0) {
-        prevTotalQuery = prevTotalQuery.or(`attribution_source.in.(${regularSources.join(',')}),attribution_source.is.null`)
+        prevTotalQuery = prevTotalQuery.or(`attribution_source.in.(${safeRegularSources.join(',')}),attribution_source.is.null`)
       } else if (includesUnknown) {
         prevTotalQuery = prevTotalQuery.is('attribution_source', null)
       } else {
-        prevTotalQuery = prevTotalQuery.in('attribution_source', regularSources)
+        prevTotalQuery = prevTotalQuery.in('attribution_source', safeRegularSources)
       }
 
       const { count: prevTotalCount } = await prevTotalQuery

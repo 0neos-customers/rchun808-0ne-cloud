@@ -27,7 +27,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from('notification_preferences')
       .select('*')
-      .eq('user_id', userId)
+      .eq('clerk_user_id', userId)
       .single()
 
     if (error && error.code !== 'PGRST116') {
@@ -41,7 +41,7 @@ export async function GET() {
 
     // If no preferences exist, return defaults with the user ID
     const preferences: NotificationPreferences = data || {
-      user_id: userId,
+      clerk_user_id: userId,
       ...DEFAULT_NOTIFICATION_PREFERENCES,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -99,13 +99,13 @@ export async function PUT(request: Request) {
     // First, check if a record exists
     const { data: existing } = await supabase
       .from('notification_preferences')
-      .select('user_id, metrics_config')
-      .eq('user_id', userId)
+      .select('clerk_user_id, metrics_config')
+      .eq('clerk_user_id', userId)
       .single()
 
     // Build the upsert data
-    const upsertData: Partial<NotificationPreferences> & { user_id: string } = {
-      user_id: userId,
+    const upsertData: Partial<NotificationPreferences> & { clerk_user_id: string } = {
+      clerk_user_id: userId,
       updated_at: new Date().toISOString(),
     }
 
@@ -142,7 +142,7 @@ export async function PUT(request: Request) {
     const { data, error } = await supabase
       .from('notification_preferences')
       .upsert(upsertData, {
-        onConflict: 'user_id',
+        onConflict: 'clerk_user_id',
       })
       .select()
       .single()
