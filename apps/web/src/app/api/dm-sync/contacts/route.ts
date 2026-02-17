@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@0ne/db/server'
+import { sanitizeForPostgrestFilter } from '@/lib/postgrest-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,8 +64,9 @@ export async function GET(request: NextRequest) {
 
     // Apply search filter
     if (search) {
+      const safeSearch = sanitizeForPostgrestFilter(search)
       mappingsQuery = mappingsQuery.or(
-        `skool_username.ilike.%${search}%,skool_display_name.ilike.%${search}%`
+        `skool_username.ilike.%${safeSearch}%,skool_display_name.ilike.%${safeSearch}%`
       )
     }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@0ne/db/server'
+import { sanitizeForPostgrestFilter } from '@/lib/postgrest-utils'
 
 // Type for the Supabase client
 type SupabaseClient = ReturnType<typeof createServerClient>
@@ -18,6 +19,7 @@ async function getFilteredBySource(
   // Handle null sources: if sources includes 'unknown', we need to include NULL attribution_source
   const includesUnknown = sources.includes('unknown') || sources.includes('null')
   const regularSources = sources.filter(s => s !== 'unknown' && s !== 'null')
+  const safeRegularSources = regularSources.map(sanitizeForPostgrestFilter)
 
   // Build query for members with join date in range
   // We need to get all members who joined in the date range and match the source filter
@@ -29,15 +31,15 @@ async function getFilteredBySource(
     .lte('member_since', `${endDate}T23:59:59Z`)
 
   // Apply source filter
-  if (includesUnknown && regularSources.length > 0) {
+  if (includesUnknown && safeRegularSources.length > 0) {
     // Need both null AND specific sources - use OR filter
-    query = query.or(`attribution_source.in.(${regularSources.join(',')}),attribution_source.is.null`)
+    query = query.or(`attribution_source.in.(${safeRegularSources.join(',')}),attribution_source.is.null`)
   } else if (includesUnknown) {
     // Only unknown/null sources
     query = query.is('attribution_source', null)
   } else {
     // Only regular sources
-    query = query.in('attribution_source', regularSources)
+    query = query.in('attribution_source', safeRegularSources)
   }
 
   const { data: members, error } = await query
@@ -84,12 +86,12 @@ async function getFilteredBySource(
     .eq('group_slug', 'fruitful')
     .lt('member_since', `${startDate}T00:00:00Z`)
 
-  if (includesUnknown && regularSources.length > 0) {
-    beforeQuery = beforeQuery.or(`attribution_source.in.(${regularSources.join(',')}),attribution_source.is.null`)
+  if (includesUnknown && safeRegularSources.length > 0) {
+    beforeQuery = beforeQuery.or(`attribution_source.in.(${safeRegularSources.join(',')}),attribution_source.is.null`)
   } else if (includesUnknown) {
     beforeQuery = beforeQuery.is('attribution_source', null)
   } else {
-    beforeQuery = beforeQuery.in('attribution_source', regularSources)
+    beforeQuery = beforeQuery.in('attribution_source', safeRegularSources)
   }
 
   const { count: beforeCount } = await beforeQuery

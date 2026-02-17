@@ -32,6 +32,8 @@ const appRoutes: Record<string, AppId> = {
   '/kpi': 'kpi',
   '/prospector': 'prospector',
   '/skool-sync': 'skoolSync',
+  '/skool': 'skoolScheduler',
+  '/media': 'ghlMedia',
 }
 
 export default clerkMiddleware(async (auth, request) => {
