@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@0ne/db/server'
-import { corsHeaders, validateExtensionApiKey } from '@/lib/extension-auth'
+import { corsHeaders, validateExtensionAuth } from '@/lib/extension-auth'
 
 export { OPTIONS } from '@/lib/extension-auth'
 
@@ -47,9 +47,14 @@ interface GetScheduledPostsResponse {
 // =============================================
 
 export async function GET(request: NextRequest) {
-  // Validate API key
-  const authError = validateExtensionApiKey(request)
-  if (authError) return authError
+  // Validate auth (supports both Clerk and API key)
+  const authResult = await validateExtensionAuth(request)
+  if (!authResult.valid) {
+    return NextResponse.json(
+      { success: false, posts: [], error: authResult.error },
+      { status: 401, headers: corsHeaders }
+    )
+  }
 
   try {
     const { searchParams } = new URL(request.url)
