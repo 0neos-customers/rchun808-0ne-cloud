@@ -7,8 +7,8 @@
 
 ## Quick Resume
 
-**Last Updated:** 2026-02-17
-**Current Focus:** Extension Incremental Sync — checkpoint-based DM polling + trash button fix
+**Last Updated:** 2026-02-18
+**Current Focus:** Contacts Page Reimagining — 100% contact matching with matched/unmatched tabs
 
 **Session 2026-02-17 Summary:**
 - ✅ Renamed `user_id` → `clerk_user_id` across 8 tables (SQL migration 035)
@@ -36,6 +36,7 @@
 | ID Column Migration | ✅ Complete | `sections/id-migration/BUILD-STATE.md` |
 | Extension Incremental Sync | 🔄 Active | `sections/extension-incremental-sync/BUILD-STATE.md` |
 | Hand-Raiser UI | ⬜ Planned | `sections/hand-raiser-ui/BUILD-STATE.md` |
+| Contacts Reimagining | 🔄 Active | `sections/contacts-reimagine/BUILD-STATE.md` |
 | Cron Fix + Sync Dashboard | ✅ Complete | `sections/sync-dashboard/BUILD-STATE.md` |
 | Skool Scheduler | ✅ Complete | `sections/skool-scheduler/BUILD-STATE.md` |
 | GHL Media Manager | ✅ Complete | `sections/media/BUILD-STATE.md` |
@@ -50,19 +51,24 @@
 
 ## Next Actions
 
-### Extension Incremental Sync (Active)
+### Contacts Page Reimagining (Active)
+**100% contact matching — matched/unmatched tabs, manual match, synthetic creation**
+
+**To deploy:** Read `sections/contacts-reimagine/BUILD-STATE.md` and deploy 4 phases SEQUENTIALLY:
+1. Phase 1: Schema migration + type updates
+2. Phase 2: Contact discovery + mapper + hand-raiser fix
+3. Phase 3: API endpoints (GET filters, PATCH manual, POST synthetic)
+4. Phase 4: Frontend UI (tabs, dialog, inbox deep link)
+
+### Extension Incremental Sync (Queued)
 **Fix DM polling to use checkpoints and fix broken trash button**
 
-**To deploy:** Read `sections/extension-incremental-sync/BUILD-STATE.md` and deploy 2 phases SEQUENTIALLY:
-1. Phase 1: Incremental sync (service-worker.ts rewrite)
-2. Phase 2: Trash button fix (types + handler + UI)
+**To deploy:** Read `sections/extension-incremental-sync/BUILD-STATE.md` and deploy 2 phases SEQUENTIALLY
 
 ### Hand-Raiser Campaign UI (Queued)
 **Build UI to manage Hand-Raiser campaigns (auto-DM Skool commenters)**
 
-**To deploy:** Read `sections/hand-raiser-ui/BUILD-STATE.md` and deploy 4 phases using multi-agent workflow:
-1. Spawn Phases 1-3 in parallel (API, Hook, Dialog)
-2. Then Phase 4 (Page + Navigation)
+**To deploy:** Read `sections/hand-raiser-ui/BUILD-STATE.md` and deploy 4 phases using multi-agent workflow
 
 ---
 

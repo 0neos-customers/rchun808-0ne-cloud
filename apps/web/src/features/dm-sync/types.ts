@@ -70,9 +70,13 @@ export interface ContactMappingRow {
   skool_user_id: string
   skool_username: string | null
   skool_display_name: string | null
-  ghl_contact_id: string
-  match_method: 'skool_id' | 'email' | 'name' | 'synthetic' | null
+  ghl_contact_id: string | null
+  match_method: 'skool_id' | 'email' | 'name' | 'synthetic' | 'manual' | 'no_email' | null
+  email: string | null
+  phone: string | null
+  contact_type: 'community_member' | 'dm_contact' | 'unknown' | null
   created_at: string
+  updated_at: string | null
 }
 
 /**
@@ -167,9 +171,13 @@ export interface ContactMapping {
   skoolUserId: string
   skoolUsername: string | null
   skoolDisplayName: string | null
-  ghlContactId: string
-  matchMethod: 'skool_id' | 'email' | 'name' | 'synthetic' | null
+  ghlContactId: string | null
+  matchMethod: 'skool_id' | 'email' | 'name' | 'synthetic' | 'manual' | 'no_email' | null
+  email: string | null
+  phone: string | null
+  contactType: 'community_member' | 'dm_contact' | 'unknown' | null
   createdAt: Date
+  updatedAt: Date | null
 }
 
 /**
@@ -276,7 +284,7 @@ export interface SendResult {
 export interface MapContactResult {
   success: boolean
   mapping?: ContactMapping
-  matchMethod?: 'skool_id' | 'email' | 'name' | 'synthetic'
+  matchMethod?: 'skool_id' | 'email' | 'name' | 'synthetic' | 'manual'
   error?: string
 }
 
