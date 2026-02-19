@@ -37,6 +37,7 @@
 | Extension Incremental Sync | 🔄 Active | `sections/extension-incremental-sync/BUILD-STATE.md` |
 | Hand-Raiser UI | ⬜ Planned | `sections/hand-raiser-ui/BUILD-STATE.md` |
 | Contacts Reimagining | 🔄 Active | `sections/contacts-reimagine/BUILD-STATE.md` |
+| Conversation Channels | 🔄 Active | `sections/conversation-channels/BUILD-STATE.md` |
 | Cron Fix + Sync Dashboard | ✅ Complete | `sections/sync-dashboard/BUILD-STATE.md` |
 | Skool Scheduler | ✅ Complete | `sections/skool-scheduler/BUILD-STATE.md` |
 | GHL Media Manager | ✅ Complete | `sections/media/BUILD-STATE.md` |
@@ -59,6 +60,16 @@
 2. Phase 2: Contact discovery + mapper + hand-raiser fix
 3. Phase 3: API endpoints (GET filters, PATCH manual, POST synthetic)
 4. Phase 4: Frontend UI (tabs, dialog, inbox deep link)
+
+### Conversation Channel Management (Active)
+**Multi-staff DM resolution — resolve placeholder channel IDs before outbound sending**
+
+**To deploy:** Read `sections/conversation-channels/BUILD-STATE.md` and deploy 5 phases:
+- Phase 0: BUILD-STATE docs ✅
+- Phase 1: Schema migration
+- Phase 3: Server API (runs before Phase 2)
+- Phase 2: Extension channel resolution
+- Phase 4: Frontend channel status on contacts
 
 ### Extension Incremental Sync (Queued)
 **Fix DM polling to use checkpoints and fix broken trash button**
