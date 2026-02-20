@@ -18,6 +18,7 @@ interface Participant {
   conversationId: string
   userId: string
   name: string
+  username?: string
 }
 
 interface PushNamesRequest {
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
 
     let updatedMessages = 0
     let updatedSyncStatus = 0
+    let enrichedContacts = 0
     let errors = 0
 
     for (const p of body.participants) {
@@ -117,14 +119,35 @@ export async function POST(request: NextRequest) {
           updatedSyncStatus++
         }
       }
+
+      // 4) Enrich dm_contact_mappings with username and display name
+      // This fills in missing skool_username for DM contacts using the slug from chat-channels API
+      if (p.userId && (p.username || p.name)) {
+        const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
+        if (p.username) updates.skool_username = p.username
+        if (p.name) updates.skool_display_name = p.name
+
+        const { data: enriched, error: enrichError } = await supabase
+          .from('dm_contact_mappings')
+          .update(updates)
+          .eq('skool_user_id', p.userId)
+          .is('skool_username', null)
+          .select('id')
+
+        if (enrichError) {
+          console.error(`[Extension API] push-names enrich error (${p.userId}):`, enrichError.message)
+        } else if (enriched && enriched.length > 0) {
+          enrichedContacts++
+        }
+      }
     }
 
     console.log(
-      `[Extension API] push-conversation-names: ${updatedMessages} messages backfilled, ${updatedSyncStatus} sync statuses updated, ${errors} errors`
+      `[Extension API] push-conversation-names: ${updatedMessages} messages backfilled, ${updatedSyncStatus} sync statuses updated, ${enrichedContacts} contacts enriched, ${errors} errors`
     )
 
     return NextResponse.json(
-      { success: errors === 0, updated: updatedMessages, syncStatusUpdated: updatedSyncStatus, errors },
+      { success: errors === 0, updated: updatedMessages, syncStatusUpdated: updatedSyncStatus, enrichedContacts, errors },
       { headers: corsHeaders }
     )
   } catch (error) {
