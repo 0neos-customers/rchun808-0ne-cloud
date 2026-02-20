@@ -276,70 +276,78 @@ export async function POST(request: NextRequest) {
     console.log(`[Backfill] Cleaned ${stats.usernames_cleaned} garbage usernames`)
 
     // =========================================================================
-    // Step 2d: Delete unrecoverable junk from dm_contact_mappings
+    // Step 2d: Delete entries with invalid skool_user_id format
     //
-    // Rows with no skool_username that ALSO don't match any skool_members
-    // row are garbage from bad scraping (e.g. "Time management", ",,,,,").
-    // These can't be fixed — we don't know who they are.
-    // Delete their orphaned dm_messages too.
+    // A real Skool user ID is either:
+    //   - A slug: lowercase letters, digits, hyphens only (e.g. "keith-sacco-6948")
+    //   - A numeric ID: digits only (e.g. "47217995")
+    //
+    // Anything with spaces, uppercase, emojis, commas, periods, apostrophes,
+    // or other special chars is garbage from bad scraping.
+    //
+    // Clean up from: dm_contact_mappings, dm_messages, contact_channels,
+    // and skool_members.
     // =========================================================================
 
-    const noUsernameMappings = await fetchAllRows<{
+    const VALID_SKOOL_ID = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/
+
+    // Check dm_contact_mappings
+    const allMappingsForValidation = await fetchAllRows<{
       id: string
       skool_user_id: string
-    }>(supabase, 'dm_contact_mappings', 'id, skool_user_id', (q) =>
-      q.is('skool_username', null)
+    }>(supabase, 'dm_contact_mappings', 'id, skool_user_id')
+
+    const invalidMappings = allMappingsForValidation.filter(
+      (m) => !VALID_SKOOL_ID.test(m.skool_user_id)
     )
 
-    if (noUsernameMappings.length > 0) {
-      // Check which of these exist in skool_members (those are real, just missing username)
-      const candidateUserIds = noUsernameMappings.map((j) => j.skool_user_id)
-      const { data: realMembers } = await supabase
-        .from('skool_members')
-        .select('skool_user_id')
-        .in('skool_user_id', candidateUserIds)
+    // Check skool_members
+    const allMembersForValidation = await fetchAllRows<{
+      skool_user_id: string
+    }>(supabase, 'skool_members', 'skool_user_id')
 
-      const realMemberIds = new Set(realMembers?.map((m) => m.skool_user_id) || [])
+    const invalidMembers = allMembersForValidation.filter(
+      (m) => !VALID_SKOOL_ID.test(m.skool_user_id)
+    )
 
-      // Entries NOT in skool_members are unrecoverable garbage
-      const garbageEntries = noUsernameMappings.filter((j) => !realMemberIds.has(j.skool_user_id))
+    // Combine all invalid user IDs for cascade delete
+    const allInvalidUserIds = [
+      ...new Set([
+        ...invalidMappings.map((m) => m.skool_user_id),
+        ...invalidMembers.map((m) => m.skool_user_id),
+      ]),
+    ]
+    const invalidMappingIds = invalidMappings.map((m) => m.id)
 
-      if (garbageEntries.length > 0) {
-        const garbageUserIds = garbageEntries.map((j) => j.skool_user_id)
-        const garbageIds = garbageEntries.map((j) => j.id)
+    if (allInvalidUserIds.length > 0) {
+      console.log(`[Backfill] Found ${invalidMappings.length} invalid mappings + ${invalidMembers.length} invalid members, deleting...`)
 
-        console.log(`[Backfill] Found ${garbageEntries.length} unrecoverable garbage mappings, deleting...`)
-
-        // Delete orphaned dm_messages first (in batches)
-        for (let i = 0; i < garbageUserIds.length; i += 50) {
-          const batch = garbageUserIds.slice(i, i + 50)
-          await supabase
-            .from('dm_messages')
-            .delete()
-            .in('skool_user_id', batch)
-        }
-
-        // Delete orphaned contact_channels
-        for (let i = 0; i < garbageUserIds.length; i += 50) {
-          const batch = garbageUserIds.slice(i, i + 50)
-          await supabase
-            .from('contact_channels')
-            .delete()
-            .in('skool_user_id', batch)
-        }
-
-        // Delete the mapping rows
-        for (let i = 0; i < garbageIds.length; i += 100) {
-          const batch = garbageIds.slice(i, i + 100)
-          await supabase
-            .from('dm_contact_mappings')
-            .delete()
-            .in('id', batch)
-        }
-
-        stats.junk_deleted = garbageEntries.length
-        console.log(`[Backfill] Deleted ${garbageEntries.length} garbage mappings + their orphaned messages/channels`)
+      // Delete dm_messages with invalid user IDs
+      for (let i = 0; i < allInvalidUserIds.length; i += 50) {
+        const batch = allInvalidUserIds.slice(i, i + 50)
+        await supabase.from('dm_messages').delete().in('skool_user_id', batch)
       }
+
+      // Delete contact_channels with invalid user IDs
+      for (let i = 0; i < allInvalidUserIds.length; i += 50) {
+        const batch = allInvalidUserIds.slice(i, i + 50)
+        await supabase.from('contact_channels').delete().in('skool_user_id', batch)
+      }
+
+      // Delete invalid dm_contact_mappings
+      for (let i = 0; i < invalidMappingIds.length; i += 100) {
+        const batch = invalidMappingIds.slice(i, i + 100)
+        await supabase.from('dm_contact_mappings').delete().in('id', batch)
+      }
+
+      // Delete invalid skool_members
+      for (let i = 0; i < invalidMembers.length; i += 50) {
+        const batch = invalidMembers.slice(i, i + 50).map((m) => m.skool_user_id)
+        await supabase.from('skool_members').delete().in('skool_user_id', batch)
+      }
+
+      stats.junk_deleted = invalidMappings.length + invalidMembers.length
+      console.log(`[Backfill] Deleted ${invalidMappings.length} mappings + ${invalidMembers.length} members with invalid skool_user_id format`)
     }
 
     // =========================================================================
