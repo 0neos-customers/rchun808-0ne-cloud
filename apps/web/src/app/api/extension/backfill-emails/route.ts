@@ -276,44 +276,69 @@ export async function POST(request: NextRequest) {
     console.log(`[Backfill] Cleaned ${stats.usernames_cleaned} garbage usernames`)
 
     // =========================================================================
-    // Step 2d: Delete junk dm_contact_mappings rows
-    // Junk = no username, no email, no phone, no ghl_contact_id, no DM messages
+    // Step 2d: Delete unrecoverable junk from dm_contact_mappings
+    //
+    // Rows with no skool_username that ALSO don't match any skool_members
+    // row are garbage from bad scraping (e.g. "Time management", ",,,,,").
+    // These can't be fixed — we don't know who they are.
+    // Delete their orphaned dm_messages too.
     // =========================================================================
 
-    const junkCandidates = await fetchAllRows<{
+    const noUsernameMappings = await fetchAllRows<{
       id: string
       skool_user_id: string
     }>(supabase, 'dm_contact_mappings', 'id, skool_user_id', (q) =>
-      q
-        .is('skool_username', null)
-        .is('email', null)
-        .is('phone', null)
-        .is('ghl_contact_id', null)
+      q.is('skool_username', null)
     )
 
-    if (junkCandidates.length > 0) {
-      // Check which of these have DM messages (keep those)
-      const junkUserIds = junkCandidates.map((j) => j.skool_user_id)
-      const { data: usersWithMessages } = await supabase
-        .from('dm_messages')
+    if (noUsernameMappings.length > 0) {
+      // Check which of these exist in skool_members (those are real, just missing username)
+      const candidateUserIds = noUsernameMappings.map((j) => j.skool_user_id)
+      const { data: realMembers } = await supabase
+        .from('skool_members')
         .select('skool_user_id')
-        .in('skool_user_id', junkUserIds)
+        .in('skool_user_id', candidateUserIds)
 
-      const hasMessages = new Set(usersWithMessages?.map((m) => m.skool_user_id) || [])
-      const toDelete = junkCandidates.filter((j) => !hasMessages.has(j.skool_user_id))
+      const realMemberIds = new Set(realMembers?.map((m) => m.skool_user_id) || [])
 
-      if (toDelete.length > 0) {
-        const deleteIds = toDelete.map((j) => j.id)
-        // Delete in batches of 100
-        for (let i = 0; i < deleteIds.length; i += 100) {
-          const batch = deleteIds.slice(i, i + 100)
+      // Entries NOT in skool_members are unrecoverable garbage
+      const garbageEntries = noUsernameMappings.filter((j) => !realMemberIds.has(j.skool_user_id))
+
+      if (garbageEntries.length > 0) {
+        const garbageUserIds = garbageEntries.map((j) => j.skool_user_id)
+        const garbageIds = garbageEntries.map((j) => j.id)
+
+        console.log(`[Backfill] Found ${garbageEntries.length} unrecoverable garbage mappings, deleting...`)
+
+        // Delete orphaned dm_messages first (in batches)
+        for (let i = 0; i < garbageUserIds.length; i += 50) {
+          const batch = garbageUserIds.slice(i, i + 50)
+          await supabase
+            .from('dm_messages')
+            .delete()
+            .in('skool_user_id', batch)
+        }
+
+        // Delete orphaned contact_channels
+        for (let i = 0; i < garbageUserIds.length; i += 50) {
+          const batch = garbageUserIds.slice(i, i + 50)
+          await supabase
+            .from('contact_channels')
+            .delete()
+            .in('skool_user_id', batch)
+        }
+
+        // Delete the mapping rows
+        for (let i = 0; i < garbageIds.length; i += 100) {
+          const batch = garbageIds.slice(i, i + 100)
           await supabase
             .from('dm_contact_mappings')
             .delete()
             .in('id', batch)
         }
-        stats.junk_deleted = toDelete.length
-        console.log(`[Backfill] Deleted ${toDelete.length} junk dm_contact_mappings rows`)
+
+        stats.junk_deleted = garbageEntries.length
+        console.log(`[Backfill] Deleted ${garbageEntries.length} garbage mappings + their orphaned messages/channels`)
       }
     }
 
