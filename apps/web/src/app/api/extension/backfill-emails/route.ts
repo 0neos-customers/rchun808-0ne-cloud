@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@0ne/db/server'
 import { corsHeaders, validateExtensionAuth } from '@/lib/extension-auth'
 import { GHLClient } from '@/features/kpi/lib/ghl-client'
+import { parseDisplayName } from '@/features/dm-sync/lib/contact-mapper'
 
 export { OPTIONS } from '@/lib/extension-auth'
 
@@ -102,7 +103,10 @@ export async function POST(request: NextRequest) {
       phones_extracted: 0,
       mappings_updated: 0,
       ghl_matched: 0,
+      ghl_phone_matched: 0,
+      ghl_created: 0,
       names_cleaned: 0,
+      usernames_cleaned: 0,
     }
 
     // =========================================================================
@@ -237,37 +241,121 @@ export async function POST(request: NextRequest) {
     console.log(`[Backfill] Cleaned ${stats.names_cleaned} garbage display names`)
 
     // =========================================================================
-    // Step 3: Auto-match unmatched members with email against GHL
+    // Step 2c: Clean up garbage skool_username values in dm_contact_mappings
+    // Garbage = contains URLs, commas, is >50 chars
+    // Set to null (no good fallback for username — it should be a slug)
     // =========================================================================
 
-    const unmatchedWithEmail = await fetchAllRows<{
+    for (const mapping of allMappingsForCleanup) {
+      const username = mapping.skool_username
+      if (!username) continue
+
+      const isGarbageUsername = username.length > 50 ||
+        username.includes('http') ||
+        username.includes(',') ||
+        username.includes('assets.skool.com')
+
+      if (isGarbageUsername) {
+        await supabase
+          .from('dm_contact_mappings')
+          .update({
+            skool_username: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('skool_user_id', mapping.skool_user_id)
+        stats.usernames_cleaned++
+      }
+    }
+
+    console.log(`[Backfill] Cleaned ${stats.usernames_cleaned} garbage usernames`)
+
+    // =========================================================================
+    // Step 3: Auto-match unmatched members against GHL
+    // Cascade: search email → search phone → create contact
+    // =========================================================================
+
+    const unmatchedWithContact = await fetchAllRows<{
       skool_user_id: string
       email: string | null
+      phone: string | null
       display_name: string | null
       skool_username: string | null
-    }>(supabase, 'skool_members', 'skool_user_id, email, display_name, skool_username', (q) =>
-      q.is('ghl_contact_id', null).not('email', 'is', null)
+      survey_answers: unknown
+    }>(supabase, 'skool_members', 'skool_user_id, email, phone, display_name, skool_username, survey_answers', (q) =>
+      q.is('ghl_contact_id', null).or('email.not.is.null,phone.not.is.null')
     )
 
-    if (unmatchedWithEmail.length > 0) {
-      console.log(`[Backfill] Auto-matching ${unmatchedWithEmail.length} unmatched members with email...`)
+    if (unmatchedWithContact.length > 0) {
+      console.log(`[Backfill] Auto-matching ${unmatchedWithContact.length} unmatched members (email/phone)...`)
 
       try {
         const ghl = new GHLClient()
         const MAX_MATCHES = 200
 
-        for (const member of unmatchedWithEmail.slice(0, MAX_MATCHES)) {
-          if (!member.email) continue
-
+        for (const member of unmatchedWithContact.slice(0, MAX_MATCHES)) {
           try {
-            const contact = await ghl.searchContactByEmail(member.email)
-            if (contact) {
+            let contact = null
+            let matchMethod = ''
+
+            // 1. Search by email
+            if (member.email) {
+              contact = await ghl.searchContactByEmail(member.email)
+              if (contact) matchMethod = 'email'
+              await new Promise((r) => setTimeout(r, 200))
+            }
+
+            // 2. Search by phone
+            if (!contact && member.phone) {
+              contact = await ghl.searchContactByPhone(member.phone)
+              if (contact) matchMethod = 'phone'
+              await new Promise((r) => setTimeout(r, 200))
+            }
+
+            // 3. Create if not found
+            if (!contact && (member.email || member.phone)) {
+              const { firstName, lastName } = parseDisplayName(member.display_name || 'Unknown')
+
+              // Build survey answer custom fields
+              const customFields: Array<{ key: string; field_value: string }> = []
+              const survey = normalizeSurveyAnswers(member.survey_answers)
+              if (survey) {
+                const fieldKeys = ['contact.skool_answer_1', 'contact.skool_answer_2', 'contact.skool_answer_3']
+                for (let i = 0; i < Math.min(survey.length, 3); i++) {
+                  const answer = (survey[i] as { answer?: string })?.answer
+                  if (answer) {
+                    customFields.push({ key: fieldKeys[i], field_value: answer })
+                  }
+                }
+              }
+
+              try {
+                contact = await ghl.createContact({
+                  email: member.email || undefined,
+                  phone: member.phone || undefined,
+                  firstName,
+                  lastName: lastName || undefined,
+                  tags: ['skool - completed registration', 'skool_auto_created'],
+                  customFields: customFields.length > 0 ? customFields : undefined,
+                })
+                matchMethod = 'auto_created'
+                stats.ghl_created++
+                console.log(`[Backfill] Created GHL contact for ${member.email || member.phone} → ${contact.id}`)
+              } catch (createError) {
+                console.error(`[Backfill] Create error for ${member.email || member.phone}:`, createError)
+              }
+              await new Promise((r) => setTimeout(r, 200))
+            }
+
+            if (contact && matchMethod) {
+              if (matchMethod === 'email') stats.ghl_matched++
+              if (matchMethod === 'phone') stats.ghl_phone_matched++
+
               await supabase
                 .from('skool_members')
                 .update({
                   ghl_contact_id: contact.id,
                   matched_at: new Date().toISOString(),
-                  match_method: 'email',
+                  match_method: matchMethod,
                 })
                 .eq('skool_user_id', member.skool_user_id)
 
@@ -275,23 +363,19 @@ export async function POST(request: NextRequest) {
                 .from('dm_contact_mappings')
                 .update({
                   ghl_contact_id: contact.id,
-                  match_method: 'email',
+                  match_method: matchMethod,
                   email: member.email,
                   updated_at: new Date().toISOString(),
                 })
                 .eq('skool_user_id', member.skool_user_id)
-
-              stats.ghl_matched++
             }
-
-            await new Promise((r) => setTimeout(r, 200))
           } catch (matchError) {
-            console.error(`[Backfill] Match error for ${member.email}:`, matchError)
+            console.error(`[Backfill] Match error for ${member.email || member.phone}:`, matchError)
           }
         }
 
-        if (unmatchedWithEmail.length > MAX_MATCHES) {
-          console.log(`[Backfill] ${unmatchedWithEmail.length - MAX_MATCHES} remaining — run again`)
+        if (unmatchedWithContact.length > MAX_MATCHES) {
+          console.log(`[Backfill] ${unmatchedWithContact.length - MAX_MATCHES} remaining — run again`)
         }
       } catch (ghlError) {
         console.error('[Backfill] GHL client error:', ghlError)

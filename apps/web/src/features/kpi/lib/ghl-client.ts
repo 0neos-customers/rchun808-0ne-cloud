@@ -338,6 +338,50 @@ export class GHLClient {
     return match || null
   }
 
+  /**
+   * Search for a contact by phone number.
+   * Compares last 10 digits to handle format differences (+1, parentheses, etc.)
+   */
+  async searchContactByPhone(phone: string): Promise<GHLContact | null> {
+    const response = await this.getContacts({ query: phone, limit: 10 })
+    const normalizedInput = phone.replace(/\D/g, '').slice(-10)
+    const match = response.contacts.find((c) => {
+      if (!c.phone) return false
+      const normalizedContact = c.phone.replace(/\D/g, '').slice(-10)
+      return normalizedContact === normalizedInput && normalizedInput.length === 10
+    })
+    return match || null
+  }
+
+  /**
+   * Create a new contact in GHL.
+   * Returns the created contact.
+   */
+  async createContact(data: {
+    email?: string
+    phone?: string
+    firstName?: string
+    lastName?: string
+    tags?: string[]
+    customFields?: Array<{ key: string; field_value: string }>
+  }): Promise<GHLContact> {
+    const body: Record<string, unknown> = {
+      locationId: this.locationId,
+    }
+    if (data.email) body.email = data.email
+    if (data.phone) body.phone = data.phone
+    if (data.firstName) body.firstName = data.firstName
+    if (data.lastName) body.lastName = data.lastName
+    if (data.tags?.length) body.tags = data.tags
+    if (data.customFields?.length) body.customFields = data.customFields
+
+    const response = await this.request<{ contact: GHLContact }>('/contacts/', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+    return response.contact
+  }
+
   // ===========================================================================
   // PAYMENTS API METHODS
   // ===========================================================================

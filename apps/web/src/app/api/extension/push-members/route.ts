@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@0ne/db/server'
 import { corsHeaders, validateExtensionAuth } from '@/lib/extension-auth'
 import { GHLClient } from '@/features/kpi/lib/ghl-client'
+import { parseDisplayName } from '@/features/dm-sync/lib/contact-mapper'
 
 export { OPTIONS } from '@/lib/extension-auth'
 
@@ -49,6 +50,7 @@ interface PushMembersResponse {
   success: boolean
   upserted: number
   matched: number
+  created: number
   errors?: string[]
 }
 
@@ -126,8 +128,15 @@ export async function POST(request: NextRequest) {
     let upserted = 0
     const errors: string[] = []
 
-    // Track members that need auto-matching (have survey email, no ghl_contact_id)
-    const needsMatching: Array<{ skoolUserId: string; email: string; displayName: string; username: string }> = []
+    // Track members that need auto-matching (have email or phone, no ghl_contact_id)
+    const needsMatching: Array<{
+      skoolUserId: string
+      email: string | null
+      phone: string | null
+      displayName: string
+      username: string
+      surveyAnswers: Record<string, string>[] | null
+    }> = []
 
     // Upsert members in batches
     for (const member of members) {
@@ -170,13 +179,15 @@ export async function POST(request: NextRequest) {
         } else {
           upserted++
 
-          // Queue for auto-matching if we have an email
-          if (effectiveEmail) {
+          // Queue for auto-matching if we have an email or phone
+          if (effectiveEmail || effectivePhone) {
             needsMatching.push({
               skoolUserId: member.skoolUserId,
               email: effectiveEmail,
+              phone: effectivePhone,
               displayName: member.name || '',
               username: member.username || member.name || '',
+              surveyAnswers: member.questionsAndAnswers ?? null,
             })
           }
         }
@@ -224,10 +235,12 @@ export async function POST(request: NextRequest) {
     }
 
     // =========================================================================
-    // Auto-match unmatched members against GHL by email
+    // Auto-match unmatched members against GHL
+    // Cascade: search email → search phone → create contact
     // =========================================================================
 
     let matched = 0
+    let created = 0
 
     if (needsMatching.length > 0) {
       // Find which of these members are still unmatched
@@ -242,7 +255,7 @@ export async function POST(request: NextRequest) {
       const toMatch = needsMatching.filter((m) => unmatchedIds.has(m.skoolUserId))
 
       if (toMatch.length > 0) {
-        console.log(`[Extension API] Auto-matching ${toMatch.length} unmatched members by email...`)
+        console.log(`[Extension API] Auto-matching ${toMatch.length} unmatched members (email/phone/create)...`)
 
         try {
           const ghl = new GHLClient()
@@ -250,16 +263,67 @@ export async function POST(request: NextRequest) {
 
           for (const member of toMatch.slice(0, MAX_MATCHES_PER_PUSH)) {
             try {
-              const contact = await ghl.searchContactByEmail(member.email)
+              let contact = null
+              let matchMethod = ''
 
-              if (contact) {
+              // 1. Search by email
+              if (member.email) {
+                contact = await ghl.searchContactByEmail(member.email)
+                if (contact) matchMethod = 'email'
+                await new Promise((resolve) => setTimeout(resolve, 200))
+              }
+
+              // 2. Search by phone
+              if (!contact && member.phone) {
+                contact = await ghl.searchContactByPhone(member.phone)
+                if (contact) matchMethod = 'phone'
+                await new Promise((resolve) => setTimeout(resolve, 200))
+              }
+
+              // 3. Create if not found
+              if (!contact && (member.email || member.phone)) {
+                const { firstName, lastName } = parseDisplayName(member.displayName || 'Unknown')
+
+                // Build survey answer custom fields
+                const customFields: Array<{ key: string; field_value: string }> = []
+                if (member.surveyAnswers) {
+                  const fieldKeys = ['contact.skool_answer_1', 'contact.skool_answer_2', 'contact.skool_answer_3']
+                  for (let i = 0; i < Math.min(member.surveyAnswers.length, 3); i++) {
+                    const answer = member.surveyAnswers[i]?.answer
+                    if (answer) {
+                      customFields.push({ key: fieldKeys[i], field_value: answer })
+                    }
+                  }
+                }
+
+                try {
+                  contact = await ghl.createContact({
+                    email: member.email || undefined,
+                    phone: member.phone || undefined,
+                    firstName,
+                    lastName: lastName || undefined,
+                    tags: ['skool - completed registration', 'skool_auto_created'],
+                    customFields: customFields.length > 0 ? customFields : undefined,
+                  })
+                  matchMethod = 'auto_created'
+                  created++
+                  console.log(`[Extension API] Created GHL contact for ${member.email || member.phone} → ${contact.id}`)
+                } catch (createError) {
+                  console.error(`[Extension API] Create error for ${member.email || member.phone}:`, createError)
+                }
+                await new Promise((resolve) => setTimeout(resolve, 200))
+              }
+
+              if (contact && matchMethod) {
+                if (matchMethod !== 'auto_created') matched++
+
                 // Update skool_members with the match
                 await supabase
                   .from('skool_members')
                   .update({
                     ghl_contact_id: contact.id,
                     matched_at: new Date().toISOString(),
-                    match_method: 'email',
+                    match_method: matchMethod,
                   })
                   .eq('skool_user_id', member.skoolUserId)
 
@@ -273,7 +337,7 @@ export async function POST(request: NextRequest) {
                     skool_username: member.username,
                     skool_display_name: member.displayName,
                     ghl_contact_id: contact.id,
-                    match_method: 'email',
+                    match_method: matchMethod,
                     email: member.email,
                     contact_type: 'community_member',
                     updated_at: new Date().toISOString(),
@@ -282,14 +346,10 @@ export async function POST(request: NextRequest) {
                     ignoreDuplicates: false,
                   })
 
-                matched++
-                console.log(`[Extension API] Matched ${member.email} → GHL ${contact.id}`)
+                console.log(`[Extension API] ${matchMethod === 'auto_created' ? 'Created' : 'Matched'} ${member.email || member.phone} → GHL ${contact.id}`)
               }
-
-              // Rate limit: 200ms between GHL API calls
-              await new Promise((resolve) => setTimeout(resolve, 200))
             } catch (matchError) {
-              console.error(`[Extension API] Match error for ${member.email}:`, matchError)
+              console.error(`[Extension API] Match error for ${member.email || member.phone}:`, matchError)
             }
           }
 
@@ -303,13 +363,14 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(
-      `[Extension API] Complete: upserted=${upserted}, matched=${matched}, errors=${errors.length}`
+      `[Extension API] Complete: upserted=${upserted}, matched=${matched}, created=${created}, errors=${errors.length}`
     )
 
     const response: PushMembersResponse = {
       success: errors.length === 0,
       upserted,
       matched,
+      created,
       ...(errors.length > 0 && { errors }),
     }
 
@@ -321,6 +382,7 @@ export async function POST(request: NextRequest) {
         success: false,
         upserted: 0,
         matched: 0,
+        created: 0,
         errors: [error instanceof Error ? error.message : 'Unknown error'],
       } as PushMembersResponse,
       { status: 500, headers: corsHeaders }

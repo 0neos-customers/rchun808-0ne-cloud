@@ -383,7 +383,7 @@ function MatchedTable({
                     <ContactTypeBadge type={contact.contact_type} />
                   </div>
                 </TableCell>
-                <TableCell className="text-muted-foreground text-sm">
+                <TableCell className="text-muted-foreground text-sm max-w-[140px] truncate overflow-hidden">
                   {contact.skool_username ? `@${contact.skool_username}` : '-'}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground truncate max-w-[180px]">
@@ -474,7 +474,7 @@ function UnmatchedTable({
                     </span>
                   </div>
                 </TableCell>
-                <TableCell className="text-muted-foreground text-sm">
+                <TableCell className="text-muted-foreground text-sm max-w-[140px] truncate overflow-hidden">
                   {contact.skool_username ? `@${contact.skool_username}` : '-'}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground truncate max-w-[180px]">
