@@ -13,6 +13,7 @@ import {
   ChevronDown,
   FolderOpen,
   RefreshCw,
+  Wrench,
   type LucideIcon
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
@@ -71,6 +72,11 @@ const allAppsNavigation: NavItem[] = [
     appId: 'ghlMedia',
     children: getAppNavigation('ghlMedia').map(item => ({ name: item.name, href: item.href }))
   },
+]
+
+// System section - always visible (no permission gating)
+const systemNavigation: NavItem[] = [
+  { name: 'Installs', href: '/installs', icon: Wrench },
 ]
 
 const accountNavigation: NavItem[] = [
@@ -278,6 +284,16 @@ export function Sidebar({ navigation }: SidebarProps) {
             </p>
             <div className="space-y-1">
               {appsNavigation.map(item => renderNavItem(item))}
+            </div>
+          </div>
+
+          {/* SYSTEM Section */}
+          <div className="mt-6">
+            <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+              System
+            </p>
+            <div className="space-y-1">
+              {systemNavigation.map(item => renderNavItem(item))}
             </div>
           </div>
         </nav>
