@@ -1,6 +1,6 @@
 # KPI Dashboard - Architecture
 
-**Migrated from:** `01 - OS/Projects/KPI-Dashboard/ARCHITECTURE.md`
+**Migrated from:** `02 - Projects/KPI-Dashboard/ARCHITECTURE.md`
 **Date:** 2026-02-04
 **Status:** Planning (integrated into 0ne-app)
 

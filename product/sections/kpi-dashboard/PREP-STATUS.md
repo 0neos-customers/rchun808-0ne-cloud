@@ -161,8 +161,8 @@ claude
 
 # First message:
 "Read these files:
-- 03 - BUILD/03-1 - Apps/0ne-app/product/sections/kpi-dashboard/PREP-STATUS.md
-- 03 - BUILD/03-1 - Apps/0ne-app/product/sections/kpi-dashboard/SETUP-CHECKLIST.md
+- 04 - Build/04-1 - Apps/0ne-app/product/sections/kpi-dashboard/PREP-STATUS.md
+- 04 - Build/04-1 - Apps/0ne-app/product/sections/kpi-dashboard/SETUP-CHECKLIST.md
 
 I'm running as the Prep/Planning session for KPI Dashboard.
 Help me document GHL tags and custom fields. Do NOT modify any code files."
@@ -295,7 +295,7 @@ These are **location-level** aggregate metrics (not per-contact):
 ## Full Reference Documentation
 
 For exhaustive tag/field documentation with all IDs and env config templates:
-- `01 - OS/Projects/KPI-Dashboard/GHL-TAG-MAPPING.md`
+- `02 - Projects/KPI-Dashboard/GHL-TAG-MAPPING.md`
 
 Contains:
 - All 254 tag names with IDs

@@ -1,8 +1,8 @@
-# Product Roadmap: 0ne Everything App
+# Product Roadmap: 0ne Cloud
 
 ## Development Sections
 
-The 0ne Everything App is organized into distinct sections that can be designed and built independently. Each section represents a self-contained area of functionality.
+0ne Cloud is organized into distinct sections that can be designed and built independently. Each section represents a self-contained area of functionality.
 
 ---
 

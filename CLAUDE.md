@@ -1,4 +1,4 @@
-# 0ne App - Claude Code Instructions
+# 0ne Cloud - Claude Code Instructions
 
 ## FIRST: Read Build State
 
@@ -73,7 +73,7 @@ This nimble hub shows what's active and points to the right feature BUILD-STATE.
 
 ## Project Overview
 
-0ne is Jimmy's personal "everything app" - a command center for business operations.
+0ne Cloud is Jimmy's personal cloud app - a command center for business operations.
 
 **Apps included:**
 - KPI Dashboard - Business metrics and funnel tracking
@@ -99,7 +99,7 @@ This nimble hub shows what's active and points to the right feature BUILD-STATE.
 ## Key Directories
 
 ```
-0ne-app/
+0ne-cloud/
 ├── product/                 ← Specs and build tracking
 │   ├── BUILD-STATE.md       ← Nimble hub (read FIRST)
 │   ├── COMPLETED-FEATURES.md← Archived features

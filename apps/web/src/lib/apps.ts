@@ -17,6 +17,7 @@ import {
   Layers,
   Megaphone,
   Upload,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react'
 import type { AppId } from '@0ne/auth/permissions'
@@ -73,6 +74,14 @@ export const APPS: AppConfig[] = [
     href: '/media',
     color: 'bg-teal-500',
   },
+  {
+    id: 'personal',
+    name: 'Personal',
+    description: 'Track personal expenses and financial health',
+    icon: Wallet,
+    href: '/personal',
+    color: 'bg-emerald-500',
+  },
 ]
 
 export function getAppById(id: AppId): AppConfig | undefined {
@@ -118,6 +127,10 @@ export function getAppNavigation(appId: AppId): AppNavItem[] {
         { name: 'Messages', href: '/skool-sync/messages', icon: MessageSquare },
         { name: 'Contacts', href: '/skool-sync/contacts', icon: Users },
         { name: 'Hand-Raisers', href: '/skool-sync/hand-raisers', icon: Megaphone },
+      ]
+    case 'personal':
+      return [
+        { name: 'Expenses', href: '/personal/expenses', icon: DollarSign },
       ]
     default:
       return []

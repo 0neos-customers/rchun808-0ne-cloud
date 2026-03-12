@@ -382,7 +382,7 @@ SKOOL_USER_ID=xxx
 **For each phase, deploy agent with:**
 
 ```
-You are working on 0ne-app at: /Users/jimmyfuentes/Library/Mobile Documents/com~apple~CloudDocs/06 - Code/0ne/03 - BUILD/03-1 - Apps/0ne-app
+You are working on 0ne-app at: /Users/jimmyfuentes/Library/Mobile Documents/com~apple~CloudDocs/06 - Code/0ne/04 - Build/04-1 - Apps/0ne-app
 
 **Your Task: Complete Phase [N]**
 
@@ -414,8 +414,8 @@ product/sections/skool-sync/BUILD-STATE.md
 
 | Item | Value |
 |------|-------|
-| Extension Repo | `03 - BUILD/03-1 - Apps/Skool-Extension/` |
-| 0ne-app Repo | `03 - BUILD/03-1 - Apps/0ne-app/` |
+| Extension Repo | `04 - Build/04-1 - Apps/Skool-Extension/` |
+| 0ne-app Repo | `04 - Build/04-1 - Apps/0ne-app/` |
 | dm_messages table | Stores all DM messages |
 | dm_contact_mappings | Skool user → GHL contact cache |
 | GHL Provider ID | `698f668bbdfabb856c31a7f0` |

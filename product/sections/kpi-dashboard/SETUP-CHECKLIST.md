@@ -1,6 +1,6 @@
 # KPI Dashboard - Setup Checklist
 
-**Migrated from:** `01 - OS/Projects/KPI-Dashboard/CREDENTIALS-CHECKLIST.md`
+**Migrated from:** `02 - Projects/KPI-Dashboard/CREDENTIALS-CHECKLIST.md`
 **Date:** 2026-02-04
 **Purpose:** Collect everything needed before connecting live data.
 

@@ -1,7 +1,7 @@
 # KPI Dashboard - Tag Mapping
 
 > **Last Updated:** 2026-02-05
-> **Source:** `01 - OS/Projects/0ne Everything App/GHL-TAG-MAPPING.md`
+> **Source:** `02 - Projects/0ne-System/Cloud/GHL-TAG-MAPPING.md`
 
 ---
 

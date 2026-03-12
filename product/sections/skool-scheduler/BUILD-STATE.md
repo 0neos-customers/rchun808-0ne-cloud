@@ -220,7 +220,7 @@ Add to `vercel.json`:
 
 2. **Import CSV data**:
    ```bash
-   cd "03 - BUILD/03-1 - Apps/0ne-app"
+   cd "04 - Build/04-1 - Apps/0ne-app"
    bun run import:scheduler
    ```
 

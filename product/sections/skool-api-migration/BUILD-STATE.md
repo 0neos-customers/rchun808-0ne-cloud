@@ -41,8 +41,8 @@ Phases run SEQUENTIALLY — never simultaneously.
 ### Phase Completion Checklist (per phase)
 
 - [ ] Code complete
-- [ ] Extension builds: `cd "03 - BUILD/03-1 - Apps/Skool-Extension" && bun run build`
-- [ ] 0ne-app builds (if modified): `cd "03 - BUILD/03-1 - Apps/0ne-app/apps/web" && bun run build`
+- [ ] Extension builds: `cd "04 - Build/04-1 - Apps/Skool-Extension" && bun run build`
+- [ ] 0ne-app builds (if modified): `cd "04 - Build/04-1 - Apps/0ne-app/apps/web" && bun run build`
 - [ ] Commit with descriptive message: `Phase {N}: {description}`
 - [ ] Update this BUILD-STATE's checkboxes
 - [ ] NO push (Jimmy will push)
@@ -283,10 +283,10 @@ Phases run SEQUENTIALLY — never simultaneously.
 Deploy Phase {N} of the Skool API Migration (Extension-First).
 
 ## Context
-- Extension location: 03 - BUILD/03-1 - Apps/Skool-Extension/
-- 0ne-app location: 03 - BUILD/03-1 - Apps/0ne-app/
+- Extension location: 04 - Build/04-1 - Apps/Skool-Extension/
+- 0ne-app location: 04 - Build/04-1 - Apps/0ne-app/
 - BUILD-STATE: product/sections/skool-api-migration/BUILD-STATE.md
-- Extension CLAUDE.md: 03 - BUILD/03-1 - Apps/Skool-Extension/CLAUDE.md
+- Extension CLAUDE.md: 04 - Build/04-1 - Apps/Skool-Extension/CLAUDE.md
 
 ## Your Phase Tasks
 {Copy task table from the phase section in BUILD-STATE}
@@ -305,7 +305,7 @@ Deploy Phase {N} of the Skool API Migration (Extension-First).
 {Copy from phase description}
 
 ## On Completion
-1. Ensure extension builds: cd "03 - BUILD/03-1 - Apps/Skool-Extension" && bun run build
+1. Ensure extension builds: cd "04 - Build/04-1 - Apps/Skool-Extension" && bun run build
 2. If 0ne-app changes: verify no type errors
 3. Commit with message: "Phase {N}: {description}"
 4. Return summary of what was created/modified

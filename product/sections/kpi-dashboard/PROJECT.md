@@ -1,6 +1,6 @@
 # KPI Dashboard - Strategy & KPIs
 
-**Migrated from:** `01 - OS/Projects/KPI-Dashboard/PROJECT.md`
+**Migrated from:** `02 - Projects/KPI-Dashboard/PROJECT.md`
 **Date:** 2026-02-04
 
 ---

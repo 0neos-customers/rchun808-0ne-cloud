@@ -13,6 +13,7 @@ import {
   ChevronDown,
   FolderOpen,
   RefreshCw,
+  Wallet,
   Wrench,
   type LucideIcon
 } from 'lucide-react'
@@ -71,6 +72,13 @@ const allAppsNavigation: NavItem[] = [
     icon: FolderOpen,
     appId: 'ghlMedia',
     children: getAppNavigation('ghlMedia').map(item => ({ name: item.name, href: item.href }))
+  },
+  {
+    name: 'Personal',
+    href: '/personal',
+    icon: Wallet,
+    appId: 'personal',
+    children: getAppNavigation('personal').map(item => ({ name: item.name, href: item.href }))
   },
 ]
 

@@ -36,7 +36,7 @@ ALWAYS wait for Phase 1 to complete before starting Phase 2.
 5. Main session spawns Task agent for Phase 2
 6. Agent completes Phase 2 -> commits -> returns
 7. Main session updates BUILD-STATE checkboxes
-8. Run: cd "03 - BUILD/03-1 - Apps/Skool-Extension" && bun run build
+8. Run: cd "04 - Build/04-1 - Apps/Skool-Extension" && bun run build
 9. Jimmy reviews and pushes when ready
 ```
 
@@ -214,7 +214,7 @@ disabled={syncStatus.bufferedMessages === 0 && !syncStatus.lastError}
 
 ## Verification
 
-1. `cd "03 - BUILD/03-1 - Apps/Skool-Extension" && bun run build` -- builds cleanly
+1. `cd "04 - Build/04-1 - Apps/Skool-Extension" && bun run build` -- builds cleanly
 2. Load unpacked extension in Chrome, open Skool tab
 3. **Incremental sync test:**
    - First poll: all 30 conversations should sync (no prior checkpoints)
@@ -233,7 +233,7 @@ disabled={syncStatus.bufferedMessages === 0 && !syncStatus.lastError}
 
 ### Extension (to modify)
 ```
-03 - BUILD/03-1 - Apps/Skool-Extension/
+04 - Build/04-1 - Apps/Skool-Extension/
   src/background/service-worker.ts    <- Phase 1 + Phase 2 (message handler)
   src/types/index.ts                  <- Phase 2 (add CLEAR_ERRORS type)
   src/popup/popup.tsx                 <- Phase 2 (trash button)
@@ -242,7 +242,7 @@ disabled={syncStatus.bufferedMessages === 0 && !syncStatus.lastError}
 
 ### Extension (read-only reference)
 ```
-03 - BUILD/03-1 - Apps/Skool-Extension/
+04 - Build/04-1 - Apps/Skool-Extension/
   src/lib/api-client.ts               <- getConversationSyncStatus(), updateConversationSyncStatus()
   src/content/index.ts                <- Channel response shape reference
   CLAUDE.md                           <- Extension architecture docs
@@ -250,7 +250,7 @@ disabled={syncStatus.bufferedMessages === 0 && !syncStatus.lastError}
 
 ### 0ne-app (read-only, already exists)
 ```
-03 - BUILD/03-1 - Apps/0ne-app/apps/web/src/app/api/extension/
+04 - Build/04-1 - Apps/0ne-app/apps/web/src/app/api/extension/
   conversation-sync-status/route.ts   <- Server endpoint (GET sync state)
   update-conversation-sync/route.ts   <- Server endpoint (POST upsert)
 ```

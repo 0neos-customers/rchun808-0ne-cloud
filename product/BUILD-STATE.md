@@ -38,6 +38,7 @@
 | Hand-Raiser UI | ⬜ Planned | `sections/hand-raiser-ui/BUILD-STATE.md` |
 | Contacts Reimagining | 🔄 Active | `sections/contacts-reimagine/BUILD-STATE.md` |
 | Conversation Channels | 🔄 Active | `sections/conversation-channels/BUILD-STATE.md` |
+| Personal Expenses | 🔄 Active | `sections/personal-expenses/BUILD-STATE.md` |
 | Cron Fix + Sync Dashboard | ✅ Complete | `sections/sync-dashboard/BUILD-STATE.md` |
 | Skool Scheduler | ✅ Complete | `sections/skool-scheduler/BUILD-STATE.md` |
 | GHL Media Manager | ✅ Complete | `sections/media/BUILD-STATE.md` |

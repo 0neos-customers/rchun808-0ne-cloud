@@ -1,4 +1,4 @@
-# Product Overview: 0ne Everything App
+# Product Overview: 0ne Cloud
 
 ## One-Line Description
 
@@ -8,7 +8,7 @@ A unified personal augmentation platform that consolidates all operational tools
 
 ## Vision
 
-0ne is the **application layer** of the 0ne system. Just as the 0ne workspace consolidates all knowledge, context, and projects into one place, this app consolidates all **tools and interfaces** into a single deployable platform.
+0ne Cloud is the **application layer** of the 0ne system. Just as the 0ne workspace consolidates all knowledge, context, and projects into one place, this app consolidates all **tools and interfaces** into a single deployable platform.
 
 **Prime Directive:** Time is the only truly scarce resource. This platform exists to eliminate context-switching, reduce tool sprawl, and make business operations frictionless.
 

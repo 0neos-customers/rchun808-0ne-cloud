@@ -575,7 +575,7 @@ return postId;
 
 ### Extension
 ```
-03 - BUILD/03-1 - Apps/Skool-Extension/
+04 - Build/04-1 - Apps/Skool-Extension/
 ├── manifest.json
 ├── package.json
 ├── tsconfig.json
@@ -707,9 +707,9 @@ CREATE TABLE extension_cookies (
 Deploy Phase {X.Y} of the Skool Chrome Extension.
 
 CONTEXT:
-- Read BUILD-STATE: 03 - BUILD/03-1 - Apps/0ne-app/product/sections/skool-extension/BUILD-STATE.md
-- Extension location: 03 - BUILD/03-1 - Apps/Skool-Extension/
-- 0ne-app location: 03 - BUILD/03-1 - Apps/0ne-app/
+- Read BUILD-STATE: 04 - Build/04-1 - Apps/0ne-app/product/sections/skool-extension/BUILD-STATE.md
+- Extension location: 04 - Build/04-1 - Apps/Skool-Extension/
+- 0ne-app location: 04 - Build/04-1 - Apps/0ne-app/
 
 TASK:
 {Task description from BUILD-STATE}
@@ -801,8 +801,8 @@ COMMIT: "Phase {X.Y}: {Description}"
 You are deploying Phase {X} of the Skool Chrome Extension.
 
 ## Context
-- Extension location: 03 - BUILD/03-1 - Apps/Skool-Extension/
-- 0ne-app location: 03 - BUILD/03-1 - Apps/0ne-app/
+- Extension location: 04 - Build/04-1 - Apps/Skool-Extension/
+- 0ne-app location: 04 - Build/04-1 - Apps/0ne-app/
 - BUILD-STATE: product/sections/skool-extension/BUILD-STATE.md
 
 ## Your Phase Tasks
@@ -812,8 +812,8 @@ You are deploying Phase {X} of the Skool Chrome Extension.
 {Copy specific verification from phase}
 
 ## On Completion
-1. Ensure extension builds: `cd "03 - BUILD/03-1 - Apps/Skool-Extension" && bun run build`
-2. If 0ne-app changes: `cd "03 - BUILD/03-1 - Apps/0ne-app/apps/web" && bun run build`
+1. Ensure extension builds: `cd "04 - Build/04-1 - Apps/Skool-Extension" && bun run build`
+2. If 0ne-app changes: `cd "04 - Build/04-1 - Apps/0ne-app/apps/web" && bun run build`
 3. Commit with message: "Phase {X}: {description}"
 4. Return summary of what was created/modified
 5. DO NOT PUSH (Jimmy will push)

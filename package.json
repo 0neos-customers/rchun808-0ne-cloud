@@ -1,5 +1,5 @@
 {
-  "name": "0ne-app",
+  "name": "0ne-cloud",
   "private": true,
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
