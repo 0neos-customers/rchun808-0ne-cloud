@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { usePlaidLink } from 'react-plaid-link'
 import { Button } from '@0ne/ui'
 import { Plus, Loader2 } from 'lucide-react'
@@ -13,6 +13,7 @@ export function PlaidLinkButton({ onSuccess }: PlaidLinkButtonProps) {
   const [linkToken, setLinkToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isExchanging, setIsExchanging] = useState(false)
+  const shouldOpenRef = useRef(false)
 
   const fetchLinkToken = useCallback(async () => {
     setIsLoading(true)
@@ -22,6 +23,7 @@ export function PlaidLinkButton({ onSuccess }: PlaidLinkButtonProps) {
       })
       const data = await response.json()
       if (data.link_token) {
+        shouldOpenRef.current = true
         setLinkToken(data.link_token)
       } else {
         console.error('Failed to get link token:', data.error)
@@ -53,13 +55,21 @@ export function PlaidLinkButton({ onSuccess }: PlaidLinkButtonProps) {
         console.error('Error exchanging token:', error)
       } finally {
         setIsExchanging(false)
+        setLinkToken(null)
       }
     },
     onExit: () => {
-      // User closed Plaid Link without completing
       setLinkToken(null)
     },
   })
+
+  // Auto-open Plaid Link when token arrives and hook is ready
+  useEffect(() => {
+    if (linkToken && ready && shouldOpenRef.current) {
+      shouldOpenRef.current = false
+      open()
+    }
+  }, [linkToken, ready, open])
 
   const handleClick = async () => {
     if (linkToken && ready) {
@@ -67,11 +77,6 @@ export function PlaidLinkButton({ onSuccess }: PlaidLinkButtonProps) {
     } else {
       await fetchLinkToken()
     }
-  }
-
-  // Auto-open when link token is fetched
-  if (linkToken && ready && !isExchanging) {
-    open()
   }
 
   return (
