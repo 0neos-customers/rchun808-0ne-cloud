@@ -45,7 +45,6 @@ export async function GET() {
         .from('plaid_accounts')
         .select('*')
         .in('item_id', itemIds)
-        .eq('is_hidden', false)
         .order('type')
 
       if (accountsError) {

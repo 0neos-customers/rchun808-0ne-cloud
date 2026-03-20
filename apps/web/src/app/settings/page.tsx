@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from '@0ne/ui'
 import { AppShell } from '@/components/shell'
-import { Shield, Users, RefreshCw } from 'lucide-react'
+import { Shield, Users, RefreshCw, Landmark } from 'lucide-react'
 
 export default function SettingsPage() {
   return (
@@ -61,6 +61,26 @@ export default function SettingsPage() {
               <Button variant="outline" className="w-full justify-start">
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Sync Dashboard
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Landmark className="h-5 w-5" />
+              Integrations
+            </CardTitle>
+            <CardDescription>
+              Connected bank accounts and external services
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Link href="/settings/integrations">
+              <Button variant="outline" className="w-full justify-start">
+                <Landmark className="mr-2 h-4 w-4" />
+                Manage Integrations
               </Button>
             </Link>
           </CardContent>

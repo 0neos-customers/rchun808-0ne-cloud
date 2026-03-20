@@ -17,7 +17,8 @@
         "PLAID_CLIENT_ID",
         "PLAID_SECRET",
         "PLAID_ENV",
-        "PLAID_ENCRYPTION_KEY"
+        "PLAID_ENCRYPTION_KEY",
+        "WIDGET_API_KEY"
       ]
     },
     "dev": {

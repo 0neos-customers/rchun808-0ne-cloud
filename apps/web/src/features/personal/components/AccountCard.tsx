@@ -1,13 +1,14 @@
 'use client'
 
-import { Card, CardContent, Button } from '@0ne/ui'
-import { Building2, Trash2, Loader2, AlertCircle } from 'lucide-react'
+import { Card, CardContent, Button, toast } from '@0ne/ui'
+import { Building2, Trash2, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
-import type { PlaidItem } from '../hooks/use-plaid-accounts'
+import type { PlaidItem, PlaidAccount } from '../hooks/use-plaid-accounts'
 
 interface AccountCardProps {
   item: PlaidItem
   onUnlink: (itemId: string) => Promise<void>
+  onAccountUpdate?: () => void
 }
 
 function formatBalance(balance: number | null): string {
@@ -25,8 +26,26 @@ function getTypeBadgeColor(type: string): string {
   }
 }
 
-export function AccountCard({ item, onUnlink }: AccountCardProps) {
+function getScopeBadge(scope: PlaidAccount['scope']): { label: string; className: string } {
+  switch (scope) {
+    case 'personal': return { label: 'Personal', className: 'bg-purple-100 text-purple-700' }
+    case 'business': return { label: 'Business', className: 'bg-blue-100 text-blue-700' }
+    default: return { label: 'Unassigned', className: 'bg-gray-100 text-gray-500' }
+  }
+}
+
+async function updateAccount(accountId: string, data: { is_hidden?: boolean; scope?: string | null }) {
+  const response = await fetch(`/api/personal/banking/accounts/${encodeURIComponent(accountId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  return response.json()
+}
+
+export function AccountCard({ item, onUnlink, onAccountUpdate }: AccountCardProps) {
   const [isUnlinking, setIsUnlinking] = useState(false)
+  const [updatingAccounts, setUpdatingAccounts] = useState<Set<string>>(new Set())
 
   const handleUnlink = async () => {
     setIsUnlinking(true)
@@ -34,6 +53,49 @@ export function AccountCard({ item, onUnlink }: AccountCardProps) {
       await onUnlink(item.id)
     } finally {
       setIsUnlinking(false)
+    }
+  }
+
+  const handleToggleHidden = async (account: PlaidAccount) => {
+    setUpdatingAccounts((prev) => new Set(prev).add(account.id))
+    try {
+      const result = await updateAccount(account.id, { is_hidden: !account.is_hidden })
+      if (result.success) {
+        toast.success(account.is_hidden ? 'Account visible' : 'Account hidden')
+        onAccountUpdate?.()
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update')
+    } finally {
+      setUpdatingAccounts((prev) => {
+        const next = new Set(prev)
+        next.delete(account.id)
+        return next
+      })
+    }
+  }
+
+  const handleScopeChange = async (account: PlaidAccount, scope: string) => {
+    const newScope = scope === '' ? null : scope
+    setUpdatingAccounts((prev) => new Set(prev).add(account.id))
+    try {
+      const result = await updateAccount(account.id, { scope: newScope })
+      if (result.success) {
+        toast.success(`Account set to ${newScope || 'unassigned'}`)
+        onAccountUpdate?.()
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update')
+    } finally {
+      setUpdatingAccounts((prev) => {
+        const next = new Set(prev)
+        next.delete(account.id)
+        return next
+      })
     }
   }
 
@@ -87,41 +149,85 @@ export function AccountCard({ item, onUnlink }: AccountCardProps) {
 
         {/* Account list */}
         <div className="space-y-3">
-          {item.accounts.map((account) => (
-            <div
-              key={account.id}
-              className="flex items-center justify-between rounded-lg border p-3"
-            >
-              <div className="flex items-center gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{account.name}</span>
-                    {account.mask && (
-                      <span className="text-xs text-muted-foreground">••{account.mask}</span>
+          {item.accounts.map((account) => {
+            const isUpdating = updatingAccounts.has(account.id)
+            const scopeBadge = getScopeBadge(account.scope)
+
+            return (
+              <div
+                key={account.id}
+                className={`flex items-center justify-between rounded-lg border p-3 transition-opacity ${
+                  account.is_hidden ? 'opacity-50 bg-muted/30' : ''
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  {/* Hide/show toggle */}
+                  <button
+                    onClick={() => handleToggleHidden(account)}
+                    disabled={isUpdating}
+                    className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                    title={account.is_hidden ? 'Show account' : 'Hide account'}
+                  >
+                    {isUpdating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : account.is_hidden ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm truncate">{account.name}</span>
+                      {account.mask && (
+                        <span className="text-xs text-muted-foreground shrink-0">••{account.mask}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getTypeBadgeColor(account.type)}`}>
+                        {account.subtype || account.type}
+                      </span>
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${scopeBadge.className}`}>
+                        {scopeBadge.label}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  {/* Scope selector */}
+                  <select
+                    value={account.scope || ''}
+                    onChange={(e) => handleScopeChange(account, e.target.value)}
+                    disabled={isUpdating}
+                    className="text-xs border rounded px-1.5 py-1 bg-background"
+                  >
+                    <option value="">Unassigned</option>
+                    <option value="personal">Personal</option>
+                    <option value="business">Business</option>
+                  </select>
+
+                  {/* Balance */}
+                  <div className="text-right">
+                    <div className="font-semibold text-sm">
+                      {formatBalance(account.current_balance)}
+                    </div>
+                    {account.available_balance !== null && account.available_balance !== account.current_balance && (
+                      <div className="text-xs text-muted-foreground">
+                        Available: {formatBalance(account.available_balance)}
+                      </div>
+                    )}
+                    {account.type === 'credit' && account.credit_limit && (
+                      <div className="text-xs text-muted-foreground">
+                        Limit: {formatBalance(account.credit_limit)}
+                      </div>
                     )}
                   </div>
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium mt-1 ${getTypeBadgeColor(account.type)}`}>
-                    {account.subtype || account.type}
-                  </span>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="font-semibold text-sm">
-                  {formatBalance(account.current_balance)}
-                </div>
-                {account.available_balance !== null && account.available_balance !== account.current_balance && (
-                  <div className="text-xs text-muted-foreground">
-                    Available: {formatBalance(account.available_balance)}
-                  </div>
-                )}
-                {account.type === 'credit' && account.credit_limit && (
-                  <div className="text-xs text-muted-foreground">
-                    Limit: {formatBalance(account.credit_limit)}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+            )
+          })}
           {item.accounts.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-2">
               No accounts found

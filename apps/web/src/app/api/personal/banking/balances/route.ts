@@ -15,6 +15,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const refresh = searchParams.get('refresh') === 'true'
+    const scope = searchParams.get('scope') // 'personal', 'business', or null (all)
 
     const supabase = createServerClient()
 
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
     }
 
     // Return cached balances from DB
-    const { data: accounts, error } = await supabase
+    let query = supabase
       .from('plaid_accounts')
       .select(`
         id,
@@ -62,11 +63,18 @@ export async function GET(request: Request) {
         credit_limit,
         iso_currency_code,
         is_hidden,
+        scope,
         item_id,
         plaid_items(institution_name)
       `)
       .eq('is_hidden', false)
-      .order('type')
+
+    // Filter by scope if specified
+    if (scope === 'personal' || scope === 'business') {
+      query = query.eq('scope', scope)
+    }
+
+    const { data: accounts, error } = await query.order('type')
 
     if (error) {
       return NextResponse.json(

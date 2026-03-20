@@ -29,6 +29,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/extension(.*)', // Chrome extension uses API key auth
   '/api/auth(.*)', // OAuth callbacks
   '/api/webhooks(.*)', // Webhooks from external services
+  '/api/widget(.*)', // Widget API uses its own token auth
 ])
 
 const appRoutes: Record<string, AppId> = {

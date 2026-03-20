@@ -39,7 +39,11 @@ interface UsePlaidBalancesReturn {
   refresh: () => Promise<void>
 }
 
-export function usePlaidBalances(): UsePlaidBalancesReturn {
+interface UsePlaidBalancesOptions {
+  scope?: 'personal' | 'business'
+}
+
+export function usePlaidBalances(options?: UsePlaidBalancesOptions): UsePlaidBalancesReturn {
   const [accounts, setAccounts] = useState<PlaidBalanceAccount[]>([])
   const [grouped, setGrouped] = useState<UsePlaidBalancesReturn['grouped']>({
     checking: [],
@@ -58,6 +62,7 @@ export function usePlaidBalances(): UsePlaidBalancesReturn {
     try {
       const url = new URL('/api/personal/banking/balances', window.location.origin)
       if (refreshFromPlaid) url.searchParams.set('refresh', 'true')
+      if (options?.scope) url.searchParams.set('scope', options.scope)
 
       const response = await fetch(url.toString())
       if (!response.ok) {
@@ -74,7 +79,7 @@ export function usePlaidBalances(): UsePlaidBalancesReturn {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [options?.scope])
 
   useEffect(() => {
     fetchData()

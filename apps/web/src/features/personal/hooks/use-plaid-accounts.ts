@@ -16,6 +16,7 @@ export interface PlaidAccount {
   credit_limit: number | null
   iso_currency_code: string
   is_hidden: boolean
+  scope: 'personal' | 'business' | null
 }
 
 export interface PlaidItem {
