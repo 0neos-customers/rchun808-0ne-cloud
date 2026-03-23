@@ -13,6 +13,7 @@ export {
   CardContent,
 } from './components/card'
 export { Input } from './components/input'
+export { Label } from './components/label'
 export { Badge, badgeVariants } from './components/badge'
 export { Separator } from './components/separator'
 export {
