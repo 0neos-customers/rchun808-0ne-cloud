@@ -1,27 +1,36 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Baskervville, Montserrat, JetBrains_Mono } from "next/font/google";
 import "./marketing.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const baskervville = Baskervville({
+  variable: "--font-heading",
   subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const montserrat = Montserrat({
+  variable: "--font-body",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "900"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
+  subsets: ["latin"],
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
-  title: "0ne — Personal AI Infrastructure",
+  title: "One OS — Personal AI Infrastructure",
   description:
     "Your personal AI command center. An all-in-one system that turns Claude into your executive assistant, accessible from terminal, mobile, and Slack.",
   openGraph: {
-    title: "0ne — Personal AI Infrastructure",
+    title: "One OS — Personal AI Infrastructure",
     description:
       "Your personal AI command center. Turn Claude into your executive assistant.",
     url: "https://0neos.com",
-    siteName: "0ne",
+    siteName: "One OS",
     type: "website",
   },
 };
@@ -32,7 +41,7 @@ export default function MarketingLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className={`${geistSans.variable} ${geistMono.variable} antialiased marketing-root`}>
+    <div className={`${baskervville.variable} ${montserrat.variable} ${jetbrainsMono.variable} antialiased marketing-root`}>
       {children}
     </div>
   );

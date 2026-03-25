@@ -192,9 +192,11 @@ function InstallPrepContent() {
       <nav className="flex items-center justify-between px-6 py-4 max-w-4xl mx-auto w-full">
         <a
           href="/"
-          className="text-lg font-bold tracking-tight text-[var(--color-charcoal)]"
+          className="flex items-baseline gap-0.5 text-xl font-semibold tracking-tight"
         >
-          0<span className="text-[var(--color-orange)]">ne</span>
+          <span className="italic text-[var(--color-orange)]" style={{ fontFamily: "var(--font-heading), Georgia, serif" }}>O</span>
+          <span>ne</span>
+          <span className="ml-1.5 text-[var(--color-muted)] font-normal">OS</span>
         </a>
         <span className="text-sm text-[var(--color-muted)]">Session Prep</span>
       </nav>
@@ -699,7 +701,7 @@ function InstallPrepContent() {
             href="/"
             className="text-sm text-[var(--color-muted)] hover:text-[var(--color-charcoal)] transition-colors"
           >
-            ← Back to 0ne
+            ← Back to One OS
           </a>
         </div>
       </main>

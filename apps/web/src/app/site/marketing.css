@@ -1,20 +1,42 @@
 .marketing-root {
   --color-orange: #FF692D;
-  --color-orange-dark: #E55A20;
+  --color-orange-dark: #E85A1E;
   --color-cream: #F6F5F3;
   --color-charcoal: #22201D;
   --color-dark: #1C1B19;
-  --color-muted: #6B6560;
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-muted: #6B6966;
+  --color-border: #E5E3DF;
+  --color-card: #FFFFFF;
 
   background: var(--color-cream);
   color: var(--color-charcoal);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-body), system-ui, sans-serif;
   min-height: 100vh;
+}
+
+.marketing-root h1,
+.marketing-root h2,
+.marketing-root h3,
+.marketing-root h4 {
+  font-family: var(--font-heading), Georgia, serif;
+}
+
+.marketing-root code,
+.marketing-root pre,
+.marketing-root .font-mono {
+  font-family: var(--font-mono), monospace;
 }
 
 .marketing-root ::selection {
   background: var(--color-orange);
   color: white;
+}
+
+/* Card shadows matching app design system */
+.marketing-root .card-shadow {
+  box-shadow: 0px 1px 2px rgba(34, 32, 29, 0.05);
+}
+
+.marketing-root .card-shadow-md {
+  box-shadow: 0px 2px 8px rgba(34, 32, 29, 0.08);
 }
