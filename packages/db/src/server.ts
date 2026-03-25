@@ -9,6 +9,3 @@ export type Db = typeof db
 // Re-export Drizzle utilities for convenience
 export { eq, ne, gt, gte, lt, lte, and, or, not, inArray, isNull, isNotNull, desc, asc, count, sql as rawSql, ilike, like, between, arrayContains, arrayOverlaps } from 'drizzle-orm'
 export * from './schema'
-
-// Legacy Supabase client — remove after all routes are migrated
-export { createServerClient } from './server-legacy'

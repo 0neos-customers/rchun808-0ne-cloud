@@ -1616,15 +1616,15 @@ const SAMPLE_ABOUT_PAGE_DATA: AboutPageAnalyticsData = {
 }
 
 const SAMPLE_SKOOL_METRICS: SkoolMetricsSnapshot = {
-  group_slug: 'fruitful',
-  snapshot_date: '2026-02-05',
-  members_total: 2595,
-  members_active: 2589,
-  community_activity: 75,
+  groupSlug: 'fruitful',
+  snapshotDate: '2026-02-05',
+  membersTotal: 2595,
+  membersActive: 2589,
+  communityActivity: 75,
   category: 'Real Estate',
-  category_rank: 42,
-  about_page_visits: 8500,
-  conversion_rate: 30.5,
+  categoryRank: 42,
+  aboutPageVisits: 8500,
+  conversionRate: 30.5,
 }
 
 // Generate sample discovery rank data for last 30 days

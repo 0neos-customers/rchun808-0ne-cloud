@@ -5,43 +5,26 @@
  * Revenue data is now written by the Chrome extension via /api/extension/* endpoints.
  */
 
-import { createClient } from '@supabase/supabase-js'
-
-// =============================================================================
-// SUPABASE CLIENT
-// =============================================================================
-
-function getSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!url || !key) {
-    throw new Error('Missing Supabase credentials')
-  }
-
-  return createClient(url, key)
-}
+import { db, eq, gte, lte, and, desc, asc } from '@0ne/db/server'
+import { skoolRevenueDaily } from '@0ne/db/server'
 
 /**
  * Get the latest revenue snapshot for a group
  */
 export async function getLatestRevenueSnapshot(groupSlug: string = 'fruitful') {
-  const supabase = getSupabaseClient()
+  try {
+    const [data] = await db
+      .select()
+      .from(skoolRevenueDaily)
+      .where(eq(skoolRevenueDaily.groupSlug, groupSlug))
+      .orderBy(desc(skoolRevenueDaily.snapshotDate))
+      .limit(1)
 
-  const { data, error } = await supabase
-    .from('skool_revenue_daily')
-    .select('*')
-    .eq('group_slug', groupSlug)
-    .order('snapshot_date', { ascending: false })
-    .limit(1)
-    .single()
-
-  if (error) {
+    return data || null
+  } catch (error) {
     console.error('[revenue-sync] Error fetching latest snapshot:', error)
     return null
   }
-
-  return data
 }
 
 /**
@@ -52,22 +35,24 @@ export async function getRevenueHistory(
   startDate: string,
   endDate: string
 ) {
-  const supabase = getSupabaseClient()
+  try {
+    const data = await db
+      .select()
+      .from(skoolRevenueDaily)
+      .where(
+        and(
+          eq(skoolRevenueDaily.groupSlug, groupSlug),
+          gte(skoolRevenueDaily.snapshotDate, startDate),
+          lte(skoolRevenueDaily.snapshotDate, endDate)
+        )
+      )
+      .orderBy(asc(skoolRevenueDaily.snapshotDate))
 
-  const { data, error } = await supabase
-    .from('skool_revenue_daily')
-    .select('*')
-    .eq('group_slug', groupSlug)
-    .gte('snapshot_date', startDate)
-    .lte('snapshot_date', endDate)
-    .order('snapshot_date', { ascending: true })
-
-  if (error) {
+    return data || []
+  } catch (error) {
     console.error('[revenue-sync] Error fetching revenue history:', error)
     return []
   }
-
-  return data || []
 }
 
 /**
@@ -83,30 +68,34 @@ export async function getMrrChange(
   change: number
   changePercent: number | null
 }> {
-  const supabase = getSupabaseClient()
-
   // Get MRR at start
-  const { data: startData } = await supabase
-    .from('skool_revenue_daily')
-    .select('mrr')
-    .eq('group_slug', groupSlug)
-    .lte('snapshot_date', startDate)
-    .order('snapshot_date', { ascending: false })
+  const [startData] = await db
+    .select({ mrr: skoolRevenueDaily.mrr })
+    .from(skoolRevenueDaily)
+    .where(
+      and(
+        eq(skoolRevenueDaily.groupSlug, groupSlug),
+        lte(skoolRevenueDaily.snapshotDate, startDate)
+      )
+    )
+    .orderBy(desc(skoolRevenueDaily.snapshotDate))
     .limit(1)
-    .single()
 
   // Get MRR at end
-  const { data: endData } = await supabase
-    .from('skool_revenue_daily')
-    .select('mrr')
-    .eq('group_slug', groupSlug)
-    .lte('snapshot_date', endDate)
-    .order('snapshot_date', { ascending: false })
+  const [endData] = await db
+    .select({ mrr: skoolRevenueDaily.mrr })
+    .from(skoolRevenueDaily)
+    .where(
+      and(
+        eq(skoolRevenueDaily.groupSlug, groupSlug),
+        lte(skoolRevenueDaily.snapshotDate, endDate)
+      )
+    )
+    .orderBy(desc(skoolRevenueDaily.snapshotDate))
     .limit(1)
-    .single()
 
-  const startMrr = startData?.mrr || 0
-  const endMrr = endData?.mrr || 0
+  const startMrr = Number(startData?.mrr || 0)
+  const endMrr = Number(endData?.mrr || 0)
   const change = endMrr - startMrr
   const changePercent = startMrr > 0 ? ((change / startMrr) * 100) : null
 

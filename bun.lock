@@ -68,8 +68,6 @@
       "version": "0.0.1",
       "dependencies": {
         "@neondatabase/serverless": "^0.10.0",
-        "@supabase/ssr": "^0.8.0",
-        "@supabase/supabase-js": "^2.94.0",
         "drizzle-orm": "^0.38.0",
       },
       "devDependencies": {
@@ -480,8 +478,6 @@
 
     "@supabase/realtime-js": ["@supabase/realtime-js@2.95.3", "", { "dependencies": { "@types/phoenix": "^1.6.6", "@types/ws": "^8.18.1", "tslib": "2.8.1", "ws": "^8.18.2" } }, "sha512-D7EAtfU3w6BEUxDACjowWNJo/ZRo7sDIuhuOGKHIm9FHieGeoJV5R6GKTLtga/5l/6fDr2u+WcW/m8I9SYmaIw=="],
 
-    "@supabase/ssr": ["@supabase/ssr@0.8.0", "", { "dependencies": { "cookie": "^1.0.2" }, "peerDependencies": { "@supabase/supabase-js": "^2.76.1" } }, "sha512-/PKk8kNFSs8QvvJ2vOww1mF5/c5W8y42duYtXvkOSe+yZKRgTTZywYG2l41pjhNomqESZCpZtXuWmYjFRMV+dw=="],
-
     "@supabase/storage-js": ["@supabase/storage-js@2.95.3", "", { "dependencies": { "iceberg-js": "^0.8.1", "tslib": "2.8.1" } }, "sha512-4GxkJiXI3HHWjxpC3sDx1BVrV87O0hfX+wvJdqGv67KeCu+g44SPnII8y0LL/Wr677jB7tpjAxKdtVWf+xhc9A=="],
 
     "@supabase/supabase-js": ["@supabase/supabase-js@2.95.3", "", { "dependencies": { "@supabase/auth-js": "2.95.3", "@supabase/functions-js": "2.95.3", "@supabase/postgrest-js": "2.95.3", "@supabase/realtime-js": "2.95.3", "@supabase/storage-js": "2.95.3" } }, "sha512-Fukw1cUTQ6xdLiHDJhKKPu6svEPaCEDvThqCne3OaQyZvuq2qjhJAd91kJu3PXLG18aooCgYBaB6qQz35hhABg=="],
@@ -707,8 +703,6 @@
     "concat-map": ["concat-map@0.0.1", "", {}, "sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg=="],
 
     "convert-source-map": ["convert-source-map@2.0.0", "", {}, "sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg=="],
-
-    "cookie": ["cookie@1.1.1", "", {}, "sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ=="],
 
     "core-util-is": ["core-util-is@1.0.3", "", {}, "sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ=="],
 

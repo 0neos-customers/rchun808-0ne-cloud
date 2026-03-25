@@ -6,7 +6,6 @@
       "outputs": [".next/**", "dist/**"],
       "env": [
         "CLERK_SECRET_KEY",
-        "SUPABASE_SERVICE_ROLE_KEY",
         "CRON_SECRET",
         "GHL_API_KEY",
         "GHL_LOCATION_ID",

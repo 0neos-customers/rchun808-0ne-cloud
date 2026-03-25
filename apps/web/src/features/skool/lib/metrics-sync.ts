@@ -14,15 +14,15 @@ import { DEFAULT_GROUP } from './config'
 // =============================================================================
 
 export interface SkoolMetricsSnapshot {
-  group_slug: string
-  snapshot_date: string
-  members_total: number | null
-  members_active: number | null
-  community_activity: number | null
+  groupSlug: string
+  snapshotDate: string
+  membersTotal: number | null
+  membersActive: number | null
+  communityActivity: number | null
   category: string | null
-  category_rank: number | null
-  about_page_visits: number | null
-  conversion_rate: number | null
+  categoryRank: number | null
+  aboutPageVisits: number | null
+  conversionRate: number | null
 }
 
 /**
@@ -41,15 +41,15 @@ export async function getLatestMetrics(
   }
 
   return {
-    group_slug: data.groupSlug || '',
-    snapshot_date: data.snapshotDate || '',
-    members_total: data.membersTotal,
-    members_active: data.membersActive,
-    community_activity: data.communityActivity ? Number(data.communityActivity) : null,
+    groupSlug: data.groupSlug || '',
+    snapshotDate: data.snapshotDate || '',
+    membersTotal: data.membersTotal,
+    membersActive: data.membersActive,
+    communityActivity: data.communityActivity ? Number(data.communityActivity) : null,
     category: data.category,
-    category_rank: data.categoryRank,
-    about_page_visits: data.aboutPageVisits,
-    conversion_rate: data.conversionRate ? Number(data.conversionRate) : null,
+    categoryRank: data.categoryRank,
+    aboutPageVisits: data.aboutPageVisits,
+    conversionRate: data.conversionRate ? Number(data.conversionRate) : null,
   }
 }
 
@@ -72,14 +72,14 @@ export async function getMetricsHistory(
   const filtered = data.filter((d) => (d.snapshotDate || '') >= startDateStr)
 
   return filtered.map((d) => ({
-    group_slug: d.groupSlug || '',
-    snapshot_date: d.snapshotDate || '',
-    members_total: d.membersTotal,
-    members_active: d.membersActive,
-    community_activity: d.communityActivity ? Number(d.communityActivity) : null,
+    groupSlug: d.groupSlug || '',
+    snapshotDate: d.snapshotDate || '',
+    membersTotal: d.membersTotal,
+    membersActive: d.membersActive,
+    communityActivity: d.communityActivity ? Number(d.communityActivity) : null,
     category: d.category,
-    category_rank: d.categoryRank,
-    about_page_visits: d.aboutPageVisits,
-    conversion_rate: d.conversionRate ? Number(d.conversionRate) : null,
+    categoryRank: d.categoryRank,
+    aboutPageVisits: d.aboutPageVisits,
+    conversionRate: d.conversionRate ? Number(d.conversionRate) : null,
   }))
 }

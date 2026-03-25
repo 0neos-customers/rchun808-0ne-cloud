@@ -6,10 +6,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./client": "./src/client.ts",
     "./server": "./src/server.ts",
     "./schema": "./src/schema/index.ts",
-    "./server-legacy": "./src/server-legacy.ts",
     "./types": "./src/types/index.ts",
     "./types/kpi": "./src/types/kpi.ts",
     "./types/notifications": "./src/types/notifications.ts"
@@ -23,8 +21,6 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.0",
-    "@supabase/ssr": "^0.8.0",
-    "@supabase/supabase-js": "^2.94.0",
     "drizzle-orm": "^0.38.0"
   },
   "devDependencies": {

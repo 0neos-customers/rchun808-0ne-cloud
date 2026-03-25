@@ -197,7 +197,7 @@ export async function GET(request: Request) {
     const filteredAboutVisits = aboutPageDaily.reduce((sum, row) => sum + (row.visitors || 0), 0)
     const filteredConversionRate = aboutPageDaily.length > 0
       ? aboutPageDaily.reduce((sum, row) => sum + (Number(row.conversionRate) || 0), 0) / aboutPageDaily.length
-      : skoolMetrics?.conversion_rate || 0
+      : skoolMetrics?.conversionRate || 0
 
     console.log(`[KPI Overview] About visits for ${startDate} to ${endDate}: ${filteredAboutVisits} (${aboutPageDaily?.length || 0} days)`)
 
@@ -306,7 +306,7 @@ export async function GET(request: Request) {
       // Get member count at end of period (or latest available)
       filteredMemberCount = membersDailyData.length > 0
         ? membersDailyData[membersDailyData.length - 1].totalMembers!
-        : skoolMetrics?.members_total || 0
+        : skoolMetrics?.membersTotal || 0
 
       // Calculate new members in period
       newMembersInPeriod = membersDailyData.reduce((sum, row) => sum + (row.newMembers || 0), 0)
@@ -481,12 +481,12 @@ export async function GET(request: Request) {
       skool: skoolMetrics
         ? {
             // Total members at end of period (for display in cards)
-            totalMembers: filteredMemberCount || skoolMetrics.members_total || 0,
+            totalMembers: filteredMemberCount || skoolMetrics.membersTotal || 0,
             // Previous period member count for comparison
             previousTotalMembers: previousPeriodMemberCount,
             // Member change percentage (total members growth)
             totalMembersChange: Number(calculateChange(
-              filteredMemberCount || skoolMetrics.members_total || 0,
+              filteredMemberCount || skoolMetrics.membersTotal || 0,
               previousPeriodMemberCount
             ).toFixed(1)),
             // New members during the period (for funnel flow)
@@ -496,18 +496,18 @@ export async function GET(request: Request) {
             previousNewMembers: previousPeriodNewMembers,
             // New members change percentage
             newMembersChange: Number(calculateChange(newMembersInPeriod, previousPeriodNewMembers).toFixed(1)),
-            activeMembers: skoolMetrics.members_active || 0,
-            aboutPageVisits: filteredAboutVisits || skoolMetrics.about_page_visits || 0,
+            activeMembers: skoolMetrics.membersActive || 0,
+            aboutPageVisits: filteredAboutVisits || skoolMetrics.aboutPageVisits || 0,
             // Use calculated conversion rate (new members / about visits)
             conversionRate: Number(calculatedConversionRate.toFixed(1)),
-            communityActivity: skoolMetrics.community_activity || 0,
-            categoryRank: skoolMetrics.category_rank || null,
+            communityActivity: skoolMetrics.communityActivity || 0,
+            categoryRank: skoolMetrics.categoryRank || null,
             category: skoolMetrics.category || null,
-            snapshotDate: skoolMetrics.snapshot_date,
+            snapshotDate: skoolMetrics.snapshotDate,
             // MRR data from analytics-overview API
             mrr: revenueSnapshot?.mrr || 0,
-            mrrRetention: revenueSnapshot?.retention_rate || 0,
-            paidMembers: revenueSnapshot?.paying_members || 0,
+            mrrRetention: revenueSnapshot?.retentionRate || 0,
+            paidMembers: revenueSnapshot?.payingMembers || 0,
           }
         : null,
     }

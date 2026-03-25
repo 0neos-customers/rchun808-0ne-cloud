@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      settings: data || { group_slug: groupSlug, last_email_blast_at: null },
+      settings: data || { groupSlug, lastEmailBlastAt: null },
       email_blast_status: emailBlastStatus,
     })
   } catch (error) {

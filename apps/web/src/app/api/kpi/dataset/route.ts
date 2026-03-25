@@ -335,17 +335,17 @@ export async function GET(request: Request) {
       },
       skool: skoolMetrics
         ? {
-            totalMembers: skoolMetrics.members_total || 0,
-            activeMembers: skoolMetrics.members_active || 0,
-            communityActivity: skoolMetrics.community_activity || 0,
-            categoryRank: skoolMetrics.category_rank || null,
+            totalMembers: skoolMetrics.membersTotal || 0,
+            activeMembers: skoolMetrics.membersActive || 0,
+            communityActivity: skoolMetrics.communityActivity || 0,
+            categoryRank: skoolMetrics.categoryRank || null,
             category: skoolMetrics.category || null,
-            aboutPageVisits: skoolMetrics.about_page_visits || 0,
-            conversionRate: skoolMetrics.conversion_rate || 0,
-            snapshotDate: skoolMetrics.snapshot_date,
+            aboutPageVisits: skoolMetrics.aboutPageVisits || 0,
+            conversionRate: skoolMetrics.conversionRate || 0,
+            snapshotDate: skoolMetrics.snapshotDate,
             mrr: revenueSnapshot?.mrr || 0,
-            mrrRetention: revenueSnapshot?.retention_rate || 0,
-            paidMembers: revenueSnapshot?.paying_members || 0,
+            mrrRetention: revenueSnapshot?.retentionRate || 0,
+            paidMembers: revenueSnapshot?.payingMembers || 0,
           }
         : null,
       meta: {

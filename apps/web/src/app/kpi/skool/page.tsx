@@ -56,16 +56,16 @@ export default function SkoolKpiPage() {
   }
 
   // Use date-filtered data from hooks, fallback to static snapshot
-  const totalMembers = membersData?.totals?.currentMembers ?? data?.members_total
+  const totalMembers = membersData?.totals?.currentMembers ?? data?.membersTotal
   const newMembersInPeriod = membersData?.totals?.newMembersInPeriod ?? 0
-  const aboutVisits = aboutData?.totals?.totalVisitors ?? data?.about_page_visits ?? 0
+  const aboutVisits = aboutData?.totals?.totalVisitors ?? data?.aboutPageVisits ?? 0
   // Calculate conversion rate from about visits to new members
   const conversionRate = aboutVisits > 0
     ? (newMembersInPeriod / aboutVisits) * 100
-    : data?.conversion_rate ?? 0
-  const categoryRank = data?.category_rank
+    : data?.conversionRate ?? 0
+  const categoryRank = data?.categoryRank
   const category = data?.category || 'Uncategorized'
-  const snapshotDate = data?.snapshot_date
+  const snapshotDate = data?.snapshotDate
 
   return (
     <AppShell title="KPI Dashboard" appId="kpi">

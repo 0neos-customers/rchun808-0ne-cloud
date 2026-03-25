@@ -118,7 +118,7 @@ export async function GET(request: Request) {
     // Get revenue history for trend chart
     const revenueHistory = await getRevenueHistory('fruitful', startDate, endDate)
 
-    const recurringCurrent = latestSnapshot?.mrr || 0
+    const recurringCurrent = Number(latestSnapshot?.mrr || 0)
     const recurringPrevious = mrrChange.startMrr || 0
     const recurringChange = mrrChange.change || 0
     const recurringChangePercent = mrrChange.changePercent || 0
@@ -186,13 +186,13 @@ export async function GET(request: Request) {
 
     // Add recurring revenue from Skool snapshots
     for (const snapshot of revenueHistory) {
-      const month = snapshot.snapshot_date.substring(0, 7) // YYYY-MM
+      const month = snapshot.snapshotDate!.substring(0, 7) // YYYY-MM
       if (!monthlyMap.has(month)) {
         monthlyMap.set(month, { total: 0, oneTime: 0, recurring: 0 })
       }
       const data = monthlyMap.get(month)!
       // Use the last MRR value for each month as the monthly recurring
-      data.recurring = snapshot.mrr || 0
+      data.recurring = Number(snapshot.mrr || 0)
     }
 
     // Add one-time revenue from GHL transactions
@@ -255,8 +255,8 @@ export async function GET(request: Request) {
         current: recurringCurrent,
         previous: recurringPrevious,
         change: Number(recurringChangePercent.toFixed(1)),
-        retention: latestSnapshot?.retention_rate || 0,
-        payingMembers: latestSnapshot?.paying_members || 0,
+        retention: latestSnapshot?.retentionRate || 0,
+        payingMembers: latestSnapshot?.payingMembers || 0,
       },
       // Monthly breakdown for charts
       monthly,
@@ -267,7 +267,7 @@ export async function GET(request: Request) {
         label: period,
       },
       // Metadata
-      lastSync: latestSnapshot?.updated_at || null,
+      lastSync: latestSnapshot?.updatedAt || null,
     }
 
     return NextResponse.json(response)
