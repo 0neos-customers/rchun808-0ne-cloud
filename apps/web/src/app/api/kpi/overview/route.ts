@@ -348,9 +348,11 @@ export async function GET(request: Request) {
     console.log(`[KPI Overview] Calculated conversion rate: ${calculatedConversionRate.toFixed(1)}% (${newMembersInPeriod} new / ${filteredAboutVisits} visits)`)
 
     // Calculate metrics
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sumField = (data: typeof currentAggregates, field: string) =>
-      data.reduce((sum, row) => sum + ((row as any)[field] as number || 0), 0)
+    const sumField = (data: typeof currentAggregates, field: keyof typeof currentAggregates[number]): number =>
+      data.reduce((sum, row) => {
+        const val = row[field]
+        return sum + (typeof val === 'number' ? val : 0)
+      }, 0)
 
     const currentRevenue = sumField(currentAggregates, 'totalRevenue')
     const previousRevenue = sumField(previousAggregates, 'totalRevenue')

@@ -48,7 +48,26 @@ export async function GET(request: Request) {
       weeklyTrendsData,
     ] = await Promise.all([
       // 1. Daily aggregates for the period
-      db.select().from(dailyAggregatesTable)
+      db.select({
+        id: dailyAggregatesTable.id,
+        date: dailyAggregatesTable.date,
+        campaignId: dailyAggregatesTable.campaignId,
+        source: dailyAggregatesTable.source,
+        newLeads: dailyAggregatesTable.newLeads,
+        newHandRaisers: dailyAggregatesTable.newHandRaisers,
+        newQualified: dailyAggregatesTable.newQualified,
+        newVip: dailyAggregatesTable.newVip,
+        newPremium: dailyAggregatesTable.newPremium,
+        newFunded: dailyAggregatesTable.newFunded,
+        totalRevenue: dailyAggregatesTable.totalRevenue,
+        vipRevenue: dailyAggregatesTable.vipRevenue,
+        premiumRevenue: dailyAggregatesTable.premiumRevenue,
+        successFeeRevenue: dailyAggregatesTable.successFeeRevenue,
+        adSpend: dailyAggregatesTable.adSpend,
+        expenses: dailyAggregatesTable.expenses,
+        totalFundedAmount: dailyAggregatesTable.totalFundedAmount,
+        fundedCount: dailyAggregatesTable.fundedCount,
+      }).from(dailyAggregatesTable)
         .where(and(gte(dailyAggregatesTable.date, startDateStr), lte(dailyAggregatesTable.date, endDateStr)))
         .orderBy(asc(dailyAggregatesTable.date)),
 
@@ -92,7 +111,20 @@ export async function GET(request: Request) {
         .orderBy(desc(dimensionExpenseCategories.totalAmount)),
 
       // 3. Weekly trends
-      db.select().from(weeklyTrendsTable)
+      db.select({
+        weekStart: weeklyTrendsTable.weekStart,
+        weekNumber: weeklyTrendsTable.weekNumber,
+        source: weeklyTrendsTable.source,
+        campaignId: weeklyTrendsTable.campaignId,
+        newLeads: weeklyTrendsTable.newLeads,
+        newHandRaisers: weeklyTrendsTable.newHandRaisers,
+        newQualified: weeklyTrendsTable.newQualified,
+        newClients: weeklyTrendsTable.newClients,
+        totalRevenue: weeklyTrendsTable.totalRevenue,
+        adSpend: weeklyTrendsTable.adSpend,
+        costPerLead: weeklyTrendsTable.costPerLead,
+        costPerClient: weeklyTrendsTable.costPerClient,
+      }).from(weeklyTrendsTable)
         .where(and(gte(weeklyTrendsTable.weekStart, startDateStr), lte(weeklyTrendsTable.weekStart, endDateStr)))
         .orderBy(asc(weeklyTrendsTable.weekStart)),
     ])
@@ -125,7 +157,67 @@ export async function GET(request: Request) {
       db.select({ stages: contactsTable.stages }).from(contactsTable),
     ])
 
-    const aggregates = aggregatesData as DailyAggregate[]
+    const aggregates: DailyAggregate[] = aggregatesData.map((r) => ({
+      id: r.id,
+      date: r.date,
+      campaignId: r.campaignId,
+      source: r.source,
+      newLeads: r.newLeads ?? 0,
+      newHandRaisers: r.newHandRaisers ?? 0,
+      newQualified: r.newQualified ?? 0,
+      newVip: r.newVip ?? 0,
+      newPremium: r.newPremium ?? 0,
+      newFunded: r.newFunded ?? 0,
+      totalRevenue: r.totalRevenue ?? 0,
+      vipRevenue: r.vipRevenue ?? 0,
+      premiumRevenue: r.premiumRevenue ?? 0,
+      successFeeRevenue: r.successFeeRevenue ?? 0,
+      adSpend: r.adSpend ?? 0,
+      expenses: r.expenses ?? 0,
+      totalFundedAmount: r.totalFundedAmount ?? 0,
+      fundedCount: r.fundedCount ?? 0,
+    }))
+
+    // Coerce dimension nulls to defaults
+    const sources: DimensionSource[] = dimensionSourcesData.map((r) => ({
+      source: r.source ?? '',
+      displayName: r.displayName ?? '',
+      contactCount: r.contactCount ?? 0,
+      lastSeenDate: r.lastSeenDate,
+      isActive: r.isActive ?? false,
+    }))
+
+    const stages: DimensionStage[] = dimensionStagesData.map((r) => ({
+      stage: r.stage ?? '',
+      displayName: r.displayName ?? '',
+      color: r.color ?? '',
+      sortOrder: r.sortOrder ?? 0,
+      contactCount: r.contactCount ?? 0,
+    }))
+
+    const campaignDims: DimensionCampaign[] = dimensionCampaignsData.map((r) => ({
+      campaignId: r.campaignId ?? '',
+      campaignName: r.campaignName ?? '',
+      contactCount: r.contactCount ?? 0,
+      isActive: r.isActive ?? false,
+    }))
+
+    const expenseCategoryDims: DimensionExpenseCategory[] = dimensionExpenseCategoriesData.map((r) => ({
+      category: r.category ?? '',
+      displayName: r.displayName,
+      color: r.color,
+      expenseCount: r.expenseCount ?? 0,
+      totalAmount: r.totalAmount ?? 0,
+      isSystem: r.isSystem ?? false,
+    }))
+
+    const dailyExpenses: DailyExpenseByCategory[] = dailyExpensesData.map((r) => ({
+      date: r.date,
+      category: r.category,
+      amount: r.amount ?? 0,
+      isSystem: r.isSystem ?? false,
+      expenseCount: r.expenseCount ?? 0,
+    }))
 
     // Calculate stage counts from contacts' stages arrays (tags accumulate)
     const stageCountsMap: Record<string, number> = {}
@@ -139,9 +231,9 @@ export async function GET(request: Request) {
     }
 
     // Build dimension stages with live counts
-    const dimensionStagesWithCounts = dimensionStagesData.map((stage) => ({
+    const dimensionStagesWithCounts: DimensionStage[] = stages.map((stage) => ({
       ...stage,
-      contactCount: stageCountsMap[stage.stage!] || stage.contactCount || 0,
+      contactCount: stageCountsMap[stage.stage] || stage.contactCount || 0,
     }))
 
     // Organize aggregates by dimension for easy client-side slicing
@@ -180,11 +272,27 @@ export async function GET(request: Request) {
       count: stageCountsMap[stageId] || 0,
     }))
 
+    // Coerce weekly trends nulls to defaults
+    const weeklyTrends: WeeklyTrend[] = weeklyTrendsData.map((r) => ({
+      weekStart: r.weekStart ?? '',
+      weekNumber: r.weekNumber ?? '',
+      source: r.source,
+      campaignId: r.campaignId,
+      newLeads: r.newLeads ?? 0,
+      newHandRaisers: r.newHandRaisers ?? 0,
+      newQualified: r.newQualified ?? 0,
+      newClients: r.newClients ?? 0,
+      totalRevenue: r.totalRevenue ?? 0,
+      adSpend: r.adSpend ?? 0,
+      costPerLead: r.costPerLead,
+      costPerClient: r.costPerClient,
+    }))
+
     // Organize weekly trends
     const weeklyTrendsBySource: Record<string, WeeklyTrend[]> = {}
     const overallWeeklyTrends: WeeklyTrend[] = []
 
-    for (const trend of weeklyTrendsData as WeeklyTrend[]) {
+    for (const trend of weeklyTrends) {
       if (!trend.source && !trend.campaignId) {
         overallWeeklyTrends.push(trend)
       } else if (trend.source && !trend.campaignId) {
@@ -200,7 +308,7 @@ export async function GET(request: Request) {
     const dailyExpensesTotal: { date: string; amount: number }[] = []
     const dailyExpensesMap = new Map<string, number>()
 
-    for (const expense of dailyExpensesData as DailyExpenseByCategory[]) {
+    for (const expense of dailyExpenses) {
       if (!expensesByCategory[expense.category]) {
         expensesByCategory[expense.category] = []
       }
@@ -229,10 +337,10 @@ export async function GET(request: Request) {
         all: aggregates,
       },
       dimensions: {
-        sources: dimensionSourcesData as DimensionSource[],
-        stages: dimensionStagesWithCounts as DimensionStage[],
-        campaigns: dimensionCampaignsData as DimensionCampaign[],
-        expenseCategories: dimensionExpenseCategoriesData as DimensionExpenseCategory[],
+        sources: sources,
+        stages: dimensionStagesWithCounts,
+        campaigns: campaignDims,
+        expenseCategories: expenseCategoryDims,
       },
       funnel: {
         stages: funnelStages,
@@ -248,7 +356,7 @@ export async function GET(request: Request) {
       expenses: {
         byCategory: expensesByCategory,
         dailyTotal: dailyExpensesTotal,
-        categories: dimensionExpenseCategoriesData as DimensionExpenseCategory[],
+        categories: expenseCategoryDims,
       },
       skool: skoolMetrics
         ? {

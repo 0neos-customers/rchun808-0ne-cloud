@@ -65,7 +65,7 @@ function parseDateRange(searchParams: URLSearchParams): DateRangeResult {
   return getDateRangeFromPeriod(period)
 }
 
-function sumField(rows: Array<Record<string, unknown>>, field: string) {
+function sumField<T extends Record<string, unknown>>(rows: T[], field: keyof T & string): number {
   return rows.reduce((sum, row) => sum + (Number(row[field]) || 0), 0)
 }
 
@@ -132,11 +132,6 @@ export async function GET(request: Request) {
       .from(adMetrics)
       .where(and(...filters))
 
-    const usedLegacyColumns = false
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const safeRows = rows as Record<string, unknown>[]
-
     const accountDaily = await db
       .select({
         date: metaAccountDaily.date,
@@ -174,7 +169,7 @@ export async function GET(request: Request) {
 
     const dailyMap = new Map<string, Record<string, number>>()
 
-    safeRows.forEach((row) => {
+    rows.forEach((row) => {
       const date = row.date as string
       const existing = dailyMap.get(date) || {
         spend: 0,
@@ -189,20 +184,20 @@ export async function GET(request: Request) {
         roasSpendWeighted: 0,
       }
 
-      const spend = Number(row.spend) || 0
-      const impressions = Number(row.impressions) || 0
-      const reach = Number(row.reach) || 0
-      const roas = Number(row.roas) || 0
+      const spend = row.spend || 0
+      const impressions = row.impressions || 0
+      const reach = row.reach || 0
+      const roas = row.roas || 0
 
       existing.spend += spend
       existing.impressions += impressions
-      existing.clicks += Number(row.clicks) || 0
+      existing.clicks += row.clicks || 0
       existing.reach += reach
-      existing.linkClicks += Number(row.link_clicks) || 0
-      existing.uniqueClicks += Number(row.unique_clicks) || 0
-      existing.landingPageViews += Number(row.landing_page_views) || 0
-      existing.completedRegistrations += Number(row.completed_registrations) || 0
-      existing.conversions += Number(row.conversions) || 0
+      existing.linkClicks += row.linkClicks || 0
+      existing.uniqueClicks += row.uniqueClicks || 0
+      existing.landingPageViews += row.landingPageViews || 0
+      existing.completedRegistrations += row.completedRegistrations || 0
+      existing.conversions += row.conversions || 0
       existing.roasSpendWeighted += spend > 0 ? spend * roas : 0
 
       dailyMap.set(date, existing)
@@ -248,15 +243,15 @@ export async function GET(request: Request) {
       })
 
     const totals = {
-      spend: sumField(safeRows, 'spend'),
-      impressions: sumField(safeRows, 'impressions'),
-      clicks: sumField(safeRows, 'clicks'),
-      reach: sumField(safeRows, 'reach'),
-      uniqueClicks: sumField(safeRows, 'unique_clicks'),
-      linkClicks: sumField(safeRows, 'link_clicks'),
-      landingPageViews: sumField(safeRows, 'landing_page_views'),
-      completedRegistrations: sumField(safeRows, 'completed_registrations'),
-      conversions: sumField(safeRows, 'conversions'),
+      spend: sumField(rows, 'spend'),
+      impressions: sumField(rows, 'impressions'),
+      clicks: sumField(rows, 'clicks'),
+      reach: sumField(rows, 'reach'),
+      uniqueClicks: sumField(rows, 'uniqueClicks'),
+      linkClicks: sumField(rows, 'linkClicks'),
+      landingPageViews: sumField(rows, 'landingPageViews'),
+      completedRegistrations: sumField(rows, 'completedRegistrations'),
+      conversions: sumField(rows, 'conversions'),
     }
 
     let accountSummary: {
@@ -308,9 +303,9 @@ export async function GET(request: Request) {
       : 0
     const costPerConversion = totals.conversions > 0 ? totals.spend / totals.conversions : 0
 
-    const roasWeightedSum = safeRows.reduce((sum, row) => {
-      const spend = Number(row.spend) || 0
-      const roas = Number(row.roas) || 0
+    const roasWeightedSum = rows.reduce((sum, row) => {
+      const spend = row.spend || 0
+      const roas = row.roas || 0
       return sum + (spend > 0 ? spend * roas : 0)
     }, 0)
     const avgEarningsPerMember = parseFloat(process.env.EARNINGS_PER_MEMBER || '73.77')
@@ -320,18 +315,16 @@ export async function GET(request: Request) {
 
     const campaignMap = new Map<string, { id: string; name: string }>()
 
-    if (!usedLegacyColumns) {
-      safeRows.forEach((row) => {
-        if (row.campaign_meta_id) {
-          campaignMap.set(row.campaign_meta_id as string, {
-            id: row.campaign_meta_id as string,
-            name: (row.campaign_name as string) || (row.campaign_meta_id as string),
-          })
-        }
-      })
-    }
+    rows.forEach((row) => {
+      if (row.campaignMetaId) {
+        campaignMap.set(row.campaignMetaId, {
+          id: row.campaignMetaId,
+          name: row.campaignName || row.campaignMetaId,
+        })
+      }
+    })
 
-    const campaignIdsFromRows = [...new Set(safeRows.map((row) => row.campaign_id).filter(Boolean))] as string[]
+    const campaignIdsFromRows = [...new Set(rows.map((row) => row.campaignId).filter(Boolean))] as string[]
     const campaignsFromDb = campaignIdsFromRows.length > 0
       ? await db.select({ id: campaigns.id, name: campaigns.name }).from(campaigns).where(inArray(campaigns.id, campaignIdsFromRows))
       : []
@@ -345,22 +338,20 @@ export async function GET(request: Request) {
     const adSetsMap = new Map<string, { id: string; name: string }>()
     const adsMap = new Map<string, { id: string; name: string }>()
 
-    if (!usedLegacyColumns) {
-      safeRows.forEach((row) => {
-        if (row.adset_id) {
-          adSetsMap.set(row.adset_id as string, {
-            id: row.adset_id as string,
-            name: (row.adset_name as string) || row.adset_id as string,
-          })
-        }
-        if (row.ad_id) {
-          adsMap.set(row.ad_id as string, {
-            id: row.ad_id as string,
-            name: (row.ad_name as string) || row.ad_id as string,
-          })
-        }
-      })
-    }
+    rows.forEach((row) => {
+      if (row.adsetId) {
+        adSetsMap.set(row.adsetId, {
+          id: row.adsetId,
+          name: row.adsetName || row.adsetId,
+        })
+      }
+      if (row.adId) {
+        adsMap.set(row.adId, {
+          id: row.adId,
+          name: row.adName || row.adId,
+        })
+      }
+    })
 
     return NextResponse.json({
       summary: {
@@ -384,8 +375,8 @@ export async function GET(request: Request) {
       daily,
       filters: {
         campaigns: Array.from(campaignMap.values()).sort((a, b) => a.name.localeCompare(b.name)),
-        adSets: usedLegacyColumns ? [] : Array.from(adSetsMap.values()),
-        ads: usedLegacyColumns ? [] : Array.from(adsMap.values()),
+        adSets: Array.from(adSetsMap.values()),
+        ads: Array.from(adsMap.values()),
       },
       period: {
         startDate,
