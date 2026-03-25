@@ -1,4 +1,4 @@
-export { GHLClient, ghlClient } from './ghl-client'
+export { GHLClient, getGhlClient } from './ghl-client'
 export * from './config'
 export * from './date-utils'
 export * from './calc-utils'

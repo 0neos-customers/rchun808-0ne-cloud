@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import { join } from "path";
+import { existsSync } from "fs";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -13,6 +14,12 @@ export async function GET(request: Request) {
 
   try {
     const zipPath = join(process.cwd(), "private", "0ne.zip");
+    if (!existsSync(zipPath)) {
+      return NextResponse.json(
+        { error: "Download not available — template file not found on server" },
+        { status: 503 }
+      );
+    }
     const zipBuffer = await readFile(zipPath);
 
     return new NextResponse(zipBuffer, {

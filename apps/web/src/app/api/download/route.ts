@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
   if (!existsSync(zipPath)) {
     return NextResponse.json(
-      { error: "Download not available" },
+      { error: "Download not available — template file not found on server" },
       { status: 503 }
     );
   }

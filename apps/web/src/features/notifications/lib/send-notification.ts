@@ -15,7 +15,7 @@ import type {
   MetricsConfig,
 } from '@0ne/db/types/notifications'
 import { DEFAULT_METRICS_CONFIG } from '@0ne/db/types/notifications'
-import { ghlClient } from '@/features/kpi/lib/ghl-client'
+import { getGhlClient } from '@/features/kpi/lib/ghl-client'
 import { generateDailySnapshot, type FormattedSnapshot } from './generate-snapshot'
 
 // =============================================================================
@@ -73,7 +73,7 @@ async function getUserPreferences(
  */
 async function getGhlContactId(email: string): Promise<string | null> {
   try {
-    const contact = await ghlClient.searchContactByEmail(email)
+    const contact = await getGhlClient().searchContactByEmail(email)
     return contact?.id || null
   } catch (error) {
     console.error('[notifications] Failed to find GHL contact:', error)
@@ -98,7 +98,7 @@ async function sendEmail(
     year: 'numeric',
   })
 
-  return ghlClient.sendEmail({
+  return getGhlClient().sendEmail({
     contactId,
     subject: `Daily KPI Snapshot - ${date}`,
     body: snapshot.emailText,
@@ -113,7 +113,7 @@ async function sendSMS(
   contactId: string,
   snapshot: FormattedSnapshot
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  return ghlClient.sendSMS({
+  return getGhlClient().sendSMS({
     contactId,
     message: snapshot.smsText,
   })

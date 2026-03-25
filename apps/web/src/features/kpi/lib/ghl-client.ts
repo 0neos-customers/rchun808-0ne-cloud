@@ -621,4 +621,15 @@ export class GHLClient {
   }
 }
 
-export const ghlClient = new GHLClient()
+let _ghlClient: GHLClient | null = null
+export function getGhlClient(): GHLClient {
+  if (!_ghlClient) {
+    const apiKey = process.env.GHL_API_KEY
+    const locationId = process.env.GHL_LOCATION_ID
+    if (!apiKey || !locationId) {
+      throw new Error('GHL not configured: GHL_API_KEY and GHL_LOCATION_ID are required')
+    }
+    _ghlClient = new GHLClient(apiKey, locationId)
+  }
+  return _ghlClient
+}

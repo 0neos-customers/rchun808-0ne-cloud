@@ -3,7 +3,7 @@ import { db, eq, and } from '@0ne/db/server'
 import { adMetrics, campaigns, metaAccountDaily, expenses } from '@0ne/db/server'
 import { SyncLogger } from '@/lib/sync-log'
 
-export const runtime = 'edge'
+export const maxDuration = 300
 export const dynamic = 'force-dynamic'
 
 interface MetaInsightsResponse {

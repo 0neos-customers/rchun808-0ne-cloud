@@ -13,7 +13,7 @@ import { db } from '@0ne/db/server'
 import { syncActivityLog } from '@0ne/db/server'
 import { sendScheduledSnapshots } from '@/features/notifications/lib/send-notification'
 
-export const runtime = 'edge'
+export const maxDuration = 300
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {

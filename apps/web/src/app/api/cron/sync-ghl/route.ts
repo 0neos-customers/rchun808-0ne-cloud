@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@0ne/db/server'
+import { db, rawSql } from '@0ne/db/server'
 import { contacts } from '@0ne/db/server'
 import { GHLClient } from '@/features/kpi/lib/ghl-client'
 import {
@@ -10,7 +10,7 @@ import {
 } from '@/features/kpi/lib/config'
 import { SyncLogger } from '@/lib/sync-log'
 
-export const runtime = 'edge'
+export const maxDuration = 300
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
@@ -122,16 +122,16 @@ export async function GET(request: Request) {
               .onConflictDoUpdate({
                 target: [contacts.ghlContactId],
                 set: {
-                  email: contacts.email,
-                  phone: contacts.phone,
-                  firstName: contacts.firstName,
-                  lastName: contacts.lastName,
-                  currentStage: contacts.currentStage,
-                  stages: contacts.stages,
-                  creditStatus: contacts.creditStatus,
-                  leadAge: contacts.leadAge,
-                  clientAge: contacts.clientAge,
-                  updatedAt: new Date(),
+                  email: rawSql`excluded."email"`,
+                  phone: rawSql`excluded."phone"`,
+                  firstName: rawSql`excluded."first_name"`,
+                  lastName: rawSql`excluded."last_name"`,
+                  currentStage: rawSql`excluded."current_stage"`,
+                  stages: rawSql`excluded."stages"`,
+                  creditStatus: rawSql`excluded."credit_status"`,
+                  leadAge: rawSql`excluded."lead_age"`,
+                  clientAge: rawSql`excluded."client_age"`,
+                  updatedAt: rawSql`now()`,
                 },
               })
               .returning({ id: contacts.id })
@@ -165,16 +165,16 @@ export async function GET(request: Request) {
           .onConflictDoUpdate({
             target: [contacts.ghlContactId],
             set: {
-              email: contacts.email,
-              phone: contacts.phone,
-              firstName: contacts.firstName,
-              lastName: contacts.lastName,
-              currentStage: contacts.currentStage,
-              stages: contacts.stages,
-              creditStatus: contacts.creditStatus,
-              leadAge: contacts.leadAge,
-              clientAge: contacts.clientAge,
-              updatedAt: new Date(),
+              email: rawSql`excluded."email"`,
+              phone: rawSql`excluded."phone"`,
+              firstName: rawSql`excluded."first_name"`,
+              lastName: rawSql`excluded."last_name"`,
+              currentStage: rawSql`excluded."current_stage"`,
+              stages: rawSql`excluded."stages"`,
+              creditStatus: rawSql`excluded."credit_status"`,
+              leadAge: rawSql`excluded."lead_age"`,
+              clientAge: rawSql`excluded."client_age"`,
+              updatedAt: rawSql`now()`,
             },
           })
           .returning({ id: contacts.id })
