@@ -4,8 +4,7 @@ export default function Home() {
       {/* Nav */}
       <nav className="flex items-center justify-between px-6 py-5 max-w-5xl mx-auto w-full">
         <a href="/" className="flex items-baseline gap-0.5 text-xl font-semibold tracking-tight">
-          <span className="italic text-[var(--color-orange)]" style={{ fontFamily: "var(--font-heading), Georgia, serif" }}>One</span>
-          <span className="ml-1.5 text-[var(--color-muted)] font-medium text-base">OS</span>
+          <span className="italic font-bold text-[var(--color-orange)]" style={{ fontFamily: "var(--font-heading), Georgia, serif" }}>One</span><span className="font-bold text-[var(--color-charcoal)]">OS</span>
         </a>
         <a
           href="/install"
