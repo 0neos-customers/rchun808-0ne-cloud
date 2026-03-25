@@ -106,8 +106,29 @@ This has been broken 15+ times by well-meaning build sessions. If you think the 
 | UI | React + Tailwind CSS v4 |
 | Components | Custom (shadcn/ui patterns) |
 | Auth | Clerk |
-| Database | Supabase (PostgreSQL) |
+| Database | Neon (PostgreSQL) via Drizzle ORM |
 | Package Manager | bun (NEVER npm/yarn/pnpm) |
+
+---
+
+## Database (Neon + Drizzle ORM)
+
+**Migrated from Supabase on 2026-03-25.** All queries use Drizzle ORM with Neon serverless driver.
+
+**Schema:** `packages/db/src/schema/` — 9 domain-split files (kpi, skool, scheduler, dm-sync, personal, notifications, ghl, telemetry, system), 63 tables total.
+
+**Client:** `packages/db/src/server.ts` — exports `db` (Drizzle instance) + Drizzle operators (eq, desc, etc.) + all schema tables.
+
+**Import pattern:**
+```typescript
+import { db, eq, desc, and } from '@0ne/db/server'
+import { contacts, skoolMembers } from '@0ne/db/server'
+const data = await db.select().from(contacts).where(eq(contacts.id, id))
+```
+
+**KNOWN ISSUE:** `server.ts` re-exports schema, causing `neon()` to evaluate in browser when client components import from `@0ne/db/server`. A guard prevents the crash but the proper fix is separating client/server imports.
+
+**Env var:** `NEON_POSTGRES_URL` (from Vercel Neon integration)
 
 ---
 
