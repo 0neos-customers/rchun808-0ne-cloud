@@ -137,8 +137,8 @@ export async function GET(request: Request) {
     console.log('[OAuth] Tokens obtained successfully:', {
       locationId: data.locationId,
       userId: data.userId,
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token,
+      accessToken: data.access_token ? `${data.access_token.slice(0, 8)}...` : 'none',
+      refreshToken: data.refresh_token ? `${data.refresh_token.slice(0, 8)}...` : 'none',
       expiresIn: data.expires_in,
     })
 

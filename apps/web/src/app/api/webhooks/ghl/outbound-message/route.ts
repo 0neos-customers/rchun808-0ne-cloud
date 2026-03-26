@@ -119,7 +119,11 @@ export async function POST(request: Request) {
         )
       }
     } else {
-      console.warn('[GHL Webhook] GHL_CONVERSATION_PROVIDER_ID not configured — skipping provider validation')
+      console.error('[GHL Webhook] GHL_CONVERSATION_PROVIDER_ID not configured — rejecting request')
+      return NextResponse.json(
+        { error: 'Webhook not configured' },
+        { status: 503 }
+      )
     }
 
     // 5. Look up Skool user from dm_contact_mappings (by ghl_contact_id)

@@ -93,7 +93,6 @@ async function ghlRequest<T>(
   const url = `${GHL_API_BASE}${endpoint}`
 
   console.log('[GHL Media] Request URL:', url)
-  console.log('[GHL Media] Using token:', token.slice(0, 20) + '...')
 
   const response = await fetch(url, {
     ...options,

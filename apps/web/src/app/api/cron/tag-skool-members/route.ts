@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, and, isNull, isNotNull, asc } from '@0ne/db/server'
 import { skoolMembers } from '@0ne/db/server'
 import { GHLClient } from '@/features/kpi/lib/ghl-client'
+import { secureCompare } from '@/lib/security'
 
 export const maxDuration = 300 // 5 minutes max
 
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
 
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || !authHeader || !secureCompare(authHeader, `Bearer ${cronSecret}`)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

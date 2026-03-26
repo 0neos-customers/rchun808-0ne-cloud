@@ -13,6 +13,7 @@
  */
 
 import { NextResponse } from 'next/server'
+import { secureCompare } from '@/lib/security'
 
 /**
  * POST /api/webhooks/ghl/inbound
@@ -21,6 +22,13 @@ import { NextResponse } from 'next/server'
  * Returns 200 OK to acknowledge receipt.
  */
 export async function POST(request: Request) {
+  // Shared secret auth (graceful: only enforced when GHL_WEBHOOK_SECRET is set)
+  const webhookSecret = process.env.GHL_WEBHOOK_SECRET
+  const incomingSecret = request.headers.get('x-webhook-secret')
+  if (webhookSecret && (!incomingSecret || !secureCompare(incomingSecret, webhookSecret))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     // Log the incoming request for debugging
     const body = await request.text()
